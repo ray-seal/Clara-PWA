@@ -957,20 +957,25 @@ class AuthManager {
     // Listen to active members in real-time
     subscribeToActiveMembers(groupId, callback) {
         console.log(`👥 Subscribing to active members for ${groupId}...`);
+        console.log(`🔗 Collection: ${COLLECTIONS.USER_PRESENCE}`);
+        console.log(`👤 Current user:`, this.currentUser?.uid);
         
         const presenceQuery = query(
             collection(db, COLLECTIONS.USER_PRESENCE),
-            where('groupId', '==', groupId),
-            where('isActive', '==', true)
+            where('groupId', '==', groupId)
         );
 
         return onSnapshot(presenceQuery, async (snapshot) => {
-            console.log(`👥 Found ${snapshot.docs.length} active members`);
+            console.log(`👥 Found ${snapshot.docs.length} presence records`);
+            console.log(`🔍 Raw presence data:`, snapshot.docs.map(doc => ({ id: doc.id, data: doc.data() })));
             
             const activeMembers = [];
             
             for (const doc of snapshot.docs) {
                 const presenceData = doc.data();
+                
+                // Filter for active members only (JavaScript filter instead of Firestore where)
+                if (!presenceData.isActive) continue;
                 
                 try {
                     // Get user profile
@@ -998,6 +1003,9 @@ class AuthManager {
             callback(activeMembers);
         }, (error) => {
             console.error('❌ Error listening to active members:', error);
+            console.error('❌ Error code:', error.code);
+            console.error('❌ Error message:', error.message);
+            console.error('❌ Full error object:', error);
             callback([]);
         });
     }
