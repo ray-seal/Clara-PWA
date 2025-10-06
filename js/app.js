@@ -1392,10 +1392,17 @@ class ClaraApp {
     }
 
     displayChatMessages(messages) {
+        console.log(`🎨 displayChatMessages called with ${messages.length} messages`);
+        console.log(`📋 Messages data:`, messages);
+        
         const messagesContainer = document.getElementById('chat-messages');
-        if (!messagesContainer) return;
+        if (!messagesContainer) {
+            console.error('❌ Messages container not found!');
+            return;
+        }
         
         if (messages.length === 0) {
+            console.log(`📭 No messages to display`);
             messagesContainer.innerHTML = `
                 <div class="no-messages">
                     <span class="material-icons">chat_bubble_outline</span>
@@ -1406,6 +1413,7 @@ class ClaraApp {
             return;
         }
         
+        console.log(`🖼️ Rendering ${messages.length} messages...`);
         const messagesHtml = messages.map(message => {
             const displayName = message.author?.showRealName && (message.author?.firstName || message.author?.lastName)
                 ? [message.author.firstName, message.author.lastName].filter(Boolean).join(' ')
@@ -1441,8 +1449,11 @@ class ClaraApp {
             `;
         }).join('');
         
+        console.log(`✅ Messages HTML generated, updating container...`);
         messagesContainer.innerHTML = messagesHtml;
+        console.log(`📜 Container updated, scrolling to bottom...`);
         this.scrollChatToBottom();
+        console.log(`✅ displayChatMessages completed`);
     }
 
     displayActiveMembers(members) {

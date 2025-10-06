@@ -835,15 +835,17 @@ class AuthManager {
     // Listen to chat messages in real-time
     subscribeToChatMessages(groupId, callback) {
         console.log(`👂 Subscribing to chat messages for ${groupId}...`);
+        console.log(`🔗 Collection: ${COLLECTIONS.CHAT_MESSAGES}`);
+        console.log(`👤 Current user:`, this.currentUser?.uid);
         
         const messagesQuery = query(
             collection(db, COLLECTIONS.CHAT_MESSAGES),
-            where('groupId', '==', groupId),
-            orderBy('createdAt', 'asc')
+            where('groupId', '==', groupId)
         );
 
         return onSnapshot(messagesQuery, async (snapshot) => {
-            console.log(`📨 Received ${snapshot.docs.length} messages`);
+            console.log(`📨 Received ${snapshot.docs.length} messages from Firestore`);
+            console.log(`🔍 Raw snapshot:`, snapshot.docs.map(doc => ({ id: doc.id, data: doc.data() })));
             
             const messages = [];
             
@@ -875,10 +877,20 @@ class AuthManager {
                 }
             }
             
+            // Sort messages by creation date (oldest first)
+            messages.sort((a, b) => {
+                const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+                const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+                return dateA - dateB;
+            });
+            
             console.log(`✅ Processed ${messages.length} chat messages`);
+            console.log(`📤 Calling callback with messages:`, messages);
             callback(messages);
         }, (error) => {
             console.error('❌ Error listening to chat messages:', error);
+            console.error('❌ Error code:', error.code);
+            console.error('❌ Error message:', error.message);
             callback([]);
         });
     }
