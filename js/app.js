@@ -1272,16 +1272,31 @@ class ClaraApp {
     }
 
     async initializeChatRoom(groupId) {
+        console.log(`💬 Initializing chat room for ${groupId}...`);
         this.currentChatGroup = groupId;
         this.chatUnsubscribers = this.chatUnsubscribers || [];
         
+        // Small delay to ensure DOM is ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Set up back button
-        document.getElementById('back-to-groups').addEventListener('click', () => {
-            this.closeChatRoom();
-        });
+        const backButton = document.getElementById('back-to-groups');
+        if (backButton) {
+            backButton.addEventListener('click', () => {
+                this.closeChatRoom();
+            });
+        }
         
         // Set up message input and send button
         this.setupChatInput();
+        
+        // Force visibility check on input elements
+        const inputContainer = document.getElementById('chat-message-input')?.parentElement?.parentElement;
+        if (inputContainer) {
+            inputContainer.style.display = 'block';
+            inputContainer.style.visibility = 'visible';
+            console.log('✅ Chat input container visibility forced');
+        }
         
         // Update user presence
         await authManager.updateUserPresence(groupId, true);
@@ -1327,10 +1342,45 @@ class ClaraApp {
     }
 
     setupChatInput() {
+        console.log('🎛️ Setting up chat input...');
         const messageInput = document.getElementById('chat-message-input');
         const sendButton = document.getElementById('send-message-btn');
         
-        if (!messageInput || !sendButton) return;
+        console.log('📝 Message input found:', !!messageInput);
+        console.log('🔘 Send button found:', !!sendButton);
+        
+        if (!messageInput || !sendButton) {
+            console.error('❌ Chat input elements not found!');
+            console.log('🔧 Attempting to recreate input elements...');
+            
+            // Try to find the container and recreate the input
+            const chatContainer = document.querySelector('.chat-messages-container');
+            if (chatContainer) {
+                const inputHtml = `
+                    <div class="chat-input-container">
+                        <div class="chat-input-wrapper">
+                            <input type="text" id="chat-message-input" placeholder="Type a supportive message..." maxlength="500">
+                            <button id="send-message-btn" class="send-button">
+                                <span class="material-icons">send</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // Remove existing input container if any
+                const existingInput = chatContainer.querySelector('.chat-input-container');
+                if (existingInput) {
+                    existingInput.remove();
+                }
+                
+                chatContainer.insertAdjacentHTML('beforeend', inputHtml);
+                console.log('✅ Chat input recreated');
+                
+                // Try again
+                return this.setupChatInput();
+            }
+            return;
+        }
         
         // Handle send button click
         sendButton.addEventListener('click', () => {
