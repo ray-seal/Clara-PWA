@@ -636,13 +636,15 @@ class AuthManager {
     async getComments(postId) {
         try {
             console.log(`📥 Loading comments for post ${postId}...`);
+            console.log(`🔗 Collection: ${COLLECTIONS.COMMENTS}`);
+            console.log(`👤 Current user:`, this.currentUser?.uid);
             
             const commentsQuery = query(
                 collection(db, COLLECTIONS.COMMENTS),
-                where('postId', '==', postId),
-                orderBy('createdAt', 'asc')
+                where('postId', '==', postId)
             );
             
+            console.log(`🔍 Executing comments query for postId: ${postId}`);
             const snapshot = await getDocs(commentsQuery);
             console.log(`📊 Found ${snapshot.docs.length} comments`);
             
@@ -677,10 +679,27 @@ class AuthManager {
                 }
             }
             
+            // Sort comments by creation date (oldest first)
+            comments.sort((a, b) => {
+                const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+                const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+                return dateA - dateB;
+            });
+            
             console.log(`✅ Successfully loaded ${comments.length} comments`);
             return comments;
         } catch (error) {
             console.error('❌ Error getting comments:', error);
+            console.error('❌ Error code:', error.code);
+            console.error('❌ Error message:', error.message);
+            console.error('❌ Full error object:', error);
+            
+            // Check if it's a Firebase permission error
+            if (error.code === 'permission-denied') {
+                console.error('🔒 Firestore permission denied for comments collection');
+                throw new Error('Permission denied: Unable to read comments. Please check your authentication status.');
+            }
+            
             throw new Error(`Failed to load comments: ${error.message}`);
         }
     }
