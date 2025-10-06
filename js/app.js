@@ -276,36 +276,24 @@ class ClaraApp {
         if (!container) return;
 
         container.innerHTML = `
-            <!-- Post Creation Form -->
-            <div class="card post-creation-card">
-                <h3>Share with the Community</h3>
-                <form id="create-post-form">
-                    <div class="form-group">
-                        <textarea id="post-content" placeholder="What's on your mind? Share your thoughts, experiences, or ask for support..." rows="4" maxlength="1000"></textarea>
-                        <div class="char-counter">
-                            <span id="char-count">0</span>/1000
-                        </div>
-                    </div>
-                    <div class="post-image-section">
-                        <input type="file" id="post-image" accept="image/*" style="display: none;">
-                        <div id="image-preview" class="image-preview" style="display: none;">
-                            <img id="preview-img" src="" alt="Preview">
-                            <button type="button" class="remove-image-btn" id="remove-image">
-                                <span class="material-icons">close</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="post-actions">
-                        <button type="button" class="btn btn-secondary" id="add-image-btn">
-                            <span class="material-icons">image</span>
-                            Add Image
-                        </button>
-                        <button type="submit" class="btn btn-primary" disabled>
-                            <span class="material-icons">send</span>
-                            Share Post
-                        </button>
-                    </div>
-                </form>
+            <!-- Simple Post Input -->
+            <div class="card post-input-card">
+                <div class="post-input-container">
+                    <input type="text" id="post-input" placeholder="What's on your mind? Share your thoughts or ask for support..." maxlength="1000">
+                    <button type="button" id="add-image-icon" class="image-icon-btn" title="Add image">
+                        <span class="material-icons">image</span>
+                    </button>
+                    <button type="button" id="post-submit-btn" class="post-submit-btn" disabled title="Share post">
+                        <span class="material-icons">send</span>
+                    </button>
+                </div>
+                <input type="file" id="post-image-input" accept="image/*" style="display: none;">
+                <div id="image-preview-simple" class="image-preview-simple" style="display: none;">
+                    <img id="preview-img-simple" src="" alt="Preview">
+                    <button type="button" class="remove-image-simple" id="remove-image-simple">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Posts Feed -->
@@ -318,28 +306,26 @@ class ClaraApp {
         `;
 
         // Set up post creation functionality
-        this.setupPostCreation();
+        this.setupSimplePostCreation();
         
         // Load and display posts
         this.loadPosts();
     }
 
-    setupPostCreation() {
-        const form = document.getElementById('create-post-form');
-        const textarea = document.getElementById('post-content');
-        const charCount = document.getElementById('char-count');
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const addImageBtn = document.getElementById('add-image-btn');
-        const imageInput = document.getElementById('post-image');
-        const imagePreview = document.getElementById('image-preview');
-        const previewImg = document.getElementById('preview-img');
-        const removeImageBtn = document.getElementById('remove-image');
+    setupSimplePostCreation() {
+        const input = document.getElementById('post-input');
+        const submitBtn = document.getElementById('post-submit-btn');
+        const addImageBtn = document.getElementById('add-image-icon');
+        const imageInput = document.getElementById('post-image-input');
+        const imagePreview = document.getElementById('image-preview-simple');
+        const previewImg = document.getElementById('preview-img-simple');
+        const removeImageBtn = document.getElementById('remove-image-simple');
 
-        // Character counter and submit button state
-        textarea.addEventListener('input', () => {
-            const length = textarea.value.length;
-            charCount.textContent = length;
-            submitBtn.disabled = length === 0;
+        // Enable submit button when there's content
+        input.addEventListener('input', () => {
+            const hasContent = input.value.trim().length > 0;
+            submitBtn.disabled = !hasContent;
+            submitBtn.style.opacity = hasContent ? '1' : '0.5';
         });
 
         // Image upload handling
@@ -359,7 +345,7 @@ class ClaraApp {
                 reader.onload = (e) => {
                     previewImg.src = e.target.result;
                     imagePreview.style.display = 'block';
-                    addImageBtn.textContent = 'Change Image';
+                    addImageBtn.classList.add('image-selected');
                 };
                 reader.readAsDataURL(file);
             }
@@ -368,35 +354,33 @@ class ClaraApp {
         removeImageBtn.addEventListener('click', () => {
             imageInput.value = '';
             imagePreview.style.display = 'none';
-            addImageBtn.innerHTML = '<span class="material-icons">image</span> Add Image';
+            addImageBtn.classList.remove('image-selected');
         });
 
-        // Form submission
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const content = textarea.value.trim();
+        // Submit post
+        submitBtn.addEventListener('click', async () => {
+            const content = input.value.trim();
             const imageFile = imageInput.files[0];
             
             if (!content) {
-                alert('Please enter some content for your post.');
                 return;
             }
 
-            const originalSubmitText = submitBtn.innerHTML;
+            const originalIcon = submitBtn.innerHTML;
             
             try {
-                submitBtn.innerHTML = '<span class="material-icons spinning">hourglass_empty</span> Sharing...';
+                submitBtn.innerHTML = '<span class="material-icons spinning">hourglass_empty</span>';
                 submitBtn.disabled = true;
 
                 await authManager.createPost(content, imageFile);
                 
                 // Reset form
-                textarea.value = '';
-                charCount.textContent = '0';
+                input.value = '';
                 imageInput.value = '';
                 imagePreview.style.display = 'none';
-                addImageBtn.innerHTML = '<span class="material-icons">image</span> Add Image';
+                addImageBtn.classList.remove('image-selected');
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = '0.5';
 
                 // Reload posts
                 this.loadPosts();
@@ -407,8 +391,15 @@ class ClaraApp {
                 console.error('❌ Error creating post:', error);
                 alert(error.message);
             } finally {
-                submitBtn.innerHTML = originalSubmitText;
-                submitBtn.disabled = textarea.value.length === 0;
+                submitBtn.innerHTML = originalIcon;
+            }
+        });
+
+        // Submit on Enter key
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !submitBtn.disabled) {
+                e.preventDefault();
+                submitBtn.click();
             }
         });
     }
