@@ -408,7 +408,7 @@ class AuthManager {
     }
 
     // Get posts for feed
-    async getPosts(limit = 20) {
+    async getPosts() {
         try {
             console.log('📥 Fetching posts from Firebase...');
             
@@ -419,8 +419,7 @@ class AuthManager {
             
             const postsQuery = query(
                 collection(db, COLLECTIONS.POSTS),
-                orderBy('createdAt', 'desc'),
-                limit(limit)
+                orderBy('createdAt', 'desc')
             );
             
             const snapshot = await getDocs(postsQuery);
