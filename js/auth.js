@@ -272,6 +272,63 @@ class AuthManager {
             return downloadURL;
         } catch (error) {
             console.error('❌ Error uploading profile picture:', error);
+            
+            // Provide more specific error messages
+            if (error.code === 'storage/unauthorized') {
+                throw new Error('Permission denied. Please contact support if this persists.');
+            } else if (error.code === 'storage/canceled') {
+                throw new Error('Upload was canceled. Please try again.');
+            } else if (error.code === 'storage/quota-exceeded') {
+                throw new Error('Storage quota exceeded. Please try a smaller image.');
+            } else if (error.code === 'storage/invalid-format') {
+                throw new Error('Invalid image format. Please use JPG, PNG, or GIF.');
+            } else {
+                throw new Error(`Upload failed: ${error.message || 'Unknown error occurred'}`);
+            }
+        }
+    }
+
+    // Update user profile information
+    async updateProfile(profileData) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            const profileRef = doc(db, COLLECTIONS.PROFILES, this.currentUser.uid);
+            
+            // Prepare update data
+            const updateData = {
+                ...profileData,
+                updatedAt: new Date()
+            };
+
+            // Update Firebase Auth display name if firstName changed
+            if (profileData.firstName && profileData.firstName !== this.currentUser.displayName) {
+                await updateProfile(this.currentUser, { 
+                    displayName: profileData.displayName || profileData.firstName 
+                });
+            }
+
+            // Update Firestore profile
+            await updateDoc(profileRef, updateData);
+            
+            console.log('✅ Profile updated successfully');
+            return true;
+        } catch (error) {
+            console.error('❌ Error updating profile:', error);
+            throw error;
+        }
+    }
+
+    // Get user profile data
+    async getUserProfile(userId = null) {
+        const uid = userId || this.currentUser?.uid;
+        if (!uid) throw new Error('No user ID provided');
+
+        try {
+            const profileDoc = await getDoc(doc(db, COLLECTIONS.PROFILES, uid));
+            return profileDoc.exists() ? profileDoc.data() : null;
+        } catch (error) {
+            console.error('❌ Error getting user profile:', error);
             throw error;
         }
     }

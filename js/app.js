@@ -376,18 +376,66 @@ class ClaraApp {
                             <input type="file" id="avatar-input" accept="image/*" style="display: none;">
                         </div>
                         <div class="profile-info">
-                            <h3>Profile Information</h3>
-                            <div class="profile-field">
-                                <strong>Name:</strong> ${displayName}
-                                ${!profileData.showRealName && (profileData.firstName || profileData.lastName) ? 
-                                    '<span class="privacy-note">(Real name hidden for privacy)</span>' : ''}
+                            <div class="profile-info-header">
+                                <h3>Profile Information</h3>
+                                <button class="btn btn-secondary btn-small" id="edit-profile-btn">
+                                    <span class="material-icons">edit</span>
+                                    Edit Profile
+                                </button>
                             </div>
-                            <div class="profile-field">
-                                <strong>Display Name:</strong> ${profileData.displayName || 'Not set'}
+                            
+                            <!-- View Mode -->
+                            <div id="profile-view-mode">
+                                <div class="profile-field">
+                                    <strong>Name:</strong> ${displayName}
+                                    ${!profileData.showRealName && (profileData.firstName || profileData.lastName) ? 
+                                        '<span class="privacy-note">(Real name hidden for privacy)</span>' : ''}
+                                </div>
+                                <div class="profile-field">
+                                    <strong>Display Name:</strong> ${profileData.displayName || 'Not set'}
+                                </div>
+                                <div class="profile-field">
+                                    <strong>Bio:</strong> ${profileData.bio || 'No bio set'}
+                                </div>
+                                <div class="profile-field">
+                                    <strong>Member Since:</strong> ${profileData.createdAt ? 
+                                        new Date(profileData.createdAt.toDate()).toLocaleDateString() : 'Not available'}
+                                </div>
                             </div>
-                            <div class="profile-field">
-                                <strong>Member Since:</strong> ${profileData.createdAt ? 
-                                    new Date(profileData.createdAt.toDate()).toLocaleDateString() : 'Not available'}
+                            
+                            <!-- Edit Mode -->
+                            <div id="profile-edit-mode" style="display: none;">
+                                <form id="edit-profile-form">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="edit-firstname">First Name</label>
+                                            <input type="text" id="edit-firstname" value="${profileData.firstName || ''}" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit-lastname">Last Name</label>
+                                            <input type="text" id="edit-lastname" value="${profileData.lastName || ''}" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="edit-displayname">Display Name</label>
+                                        <input type="text" id="edit-displayname" value="${profileData.displayName || ''}" 
+                                               placeholder="How others will see you">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="edit-bio">Bio</label>
+                                        <textarea id="edit-bio" rows="3" placeholder="Tell others about yourself...">${profileData.bio || ''}</textarea>
+                                    </div>
+                                    <div class="edit-profile-actions">
+                                        <button type="submit" class="btn btn-primary">
+                                            <span class="material-icons">save</span>
+                                            Save Changes
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" id="cancel-edit-btn">
+                                            <span class="material-icons">close</span>
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -445,9 +493,10 @@ class ClaraApp {
                 </div>
             `;
             
-            // Set up avatar upload functionality
+            // Set up all functionality
             this.setupAvatarUpload();
             this.setupPrivacyToggle();
+            this.setupEditProfile();
             
         } catch (error) {
             console.error('❌ Error loading profile:', error);
@@ -525,6 +574,77 @@ class ClaraApp {
                     // Revert toggle if failed
                     e.target.checked = !e.target.checked;
                     alert('Failed to update privacy setting. Please try again.');
+                }
+            });
+        }
+    }
+
+    setupEditProfile() {
+        const editBtn = document.getElementById('edit-profile-btn');
+        const cancelBtn = document.getElementById('cancel-edit-btn');
+        const editForm = document.getElementById('edit-profile-form');
+        const viewMode = document.getElementById('profile-view-mode');
+        const editMode = document.getElementById('profile-edit-mode');
+
+        if (editBtn) {
+            editBtn.addEventListener('click', () => {
+                // Switch to edit mode
+                viewMode.style.display = 'none';
+                editMode.style.display = 'block';
+                editBtn.style.display = 'none';
+            });
+        }
+
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                // Switch back to view mode without saving
+                viewMode.style.display = 'block';
+                editMode.style.display = 'none';
+                editBtn.style.display = 'inline-flex';
+            });
+        }
+
+        if (editForm) {
+            editForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const firstName = document.getElementById('edit-firstname').value.trim();
+                const lastName = document.getElementById('edit-lastname').value.trim();
+                const displayName = document.getElementById('edit-displayname').value.trim();
+                const bio = document.getElementById('edit-bio').value.trim();
+
+                if (!firstName || !lastName) {
+                    alert('First name and last name are required.');
+                    return;
+                }
+
+                const submitBtn = editForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+
+                try {
+                    submitBtn.innerHTML = '<span class="material-icons spinning">hourglass_empty</span> Saving...';
+                    submitBtn.disabled = true;
+
+                    // Update profile
+                    await authManager.updateProfile({
+                        firstName,
+                        lastName,
+                        displayName: displayName || firstName, // Default to firstName if displayName is empty
+                        bio
+                    });
+
+                    // Reload profile to show changes
+                    this.loadProfile();
+                    
+                    console.log('✅ Profile updated successfully');
+                    
+                } catch (error) {
+                    console.error('❌ Error updating profile:', error);
+                    alert('Failed to update profile. Please try again.');
+                    
+                    // Restore button
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
                 }
             });
         }

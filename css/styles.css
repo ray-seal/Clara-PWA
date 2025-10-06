@@ -710,3 +710,112 @@ p {
         margin-left: 0;
     }
 }
+
+/* Edit Profile Specific Styles */
+.profile-info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.btn-small {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.btn-small .material-icons {
+    font-size: 1rem;
+}
+
+.btn-secondary {
+    background: var(--surface-alt);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+    background: var(--border);
+    border-color: var(--text-secondary);
+}
+
+#edit-profile-form .form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+#edit-profile-form label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#edit-profile-form input,
+#edit-profile-form textarea {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-family);
+    font-size: var(--font-size-base);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#edit-profile-form input:focus,
+#edit-profile-form textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(107, 115, 255, 0.1);
+}
+
+#edit-profile-form textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.edit-profile-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+}
+
+.edit-profile-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.edit-profile-actions .btn .material-icons {
+    font-size: 1.1rem;
+}
+
+/* Profile field styling */
+.profile-field {
+    margin-bottom: var(--spacing-sm);
+    line-height: 1.5;
+}
+
+.profile-field strong {
+    color: var(--text-primary);
+    margin-right: var(--spacing-xs);
+}
+
+/* Responsive adjustments for edit profile */
+@media (max-width: 768px) {
+    .profile-info-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+    
+    .edit-profile-actions {
+        flex-direction: column;
+    }
+    
+    .edit-profile-actions .btn {
+        justify-content: center;
+    }
+}
