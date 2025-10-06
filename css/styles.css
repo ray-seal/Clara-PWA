@@ -1399,7 +1399,8 @@ p {
 
 .chat-title p {
     margin: 0;
-    opacity: 0.9;
+    opacity: 1;
+    color: white;
     font-size: var(--font-size-sm);
 }
 
