@@ -1359,8 +1359,8 @@ class ClaraApp {
             console.log('🔧 Attempting to recreate input elements...');
             
             // Try to find the container and recreate the input
-            const chatContainer = document.querySelector('.chat-messages-container');
-            if (chatContainer) {
+            const chatLeftPanel = document.querySelector('.chat-left-panel');
+            if (chatLeftPanel) {
                 const inputHtml = `
                     <div class="chat-input-container">
                         <div class="chat-input-wrapper">
@@ -1373,12 +1373,12 @@ class ClaraApp {
                 `;
                 
                 // Remove existing input container if any
-                const existingInput = chatContainer.querySelector('.chat-input-container');
+                const existingInput = chatLeftPanel.querySelector('.chat-input-container');
                 if (existingInput) {
                     existingInput.remove();
                 }
                 
-                chatContainer.insertAdjacentHTML('beforeend', inputHtml);
+                chatLeftPanel.insertAdjacentHTML('beforeend', inputHtml);
                 console.log('✅ Chat input recreated');
                 
                 // Try again
