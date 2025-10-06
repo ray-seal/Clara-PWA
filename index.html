@@ -60,9 +60,15 @@
             <div id="signup-form" class="auth-form" style="display: none;">
                 <h2>Join Clara</h2>
                 <form id="signup-form-element">
-                    <div class="form-group">
-                        <label for="signup-name">Display Name</label>
-                        <input type="text" id="signup-name" required autocomplete="name">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="signup-firstname">First Name</label>
+                            <input type="text" id="signup-firstname" required autocomplete="given-name">
+                        </div>
+                        <div class="form-group">
+                            <label for="signup-lastname">Last Name</label>
+                            <input type="text" id="signup-lastname" required autocomplete="family-name">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="signup-email">Email</label>

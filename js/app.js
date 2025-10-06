@@ -110,12 +110,13 @@ class ClaraApp {
     }
 
     async handleSignUp() {
-        const name = document.getElementById('signup-name').value;
+        const firstName = document.getElementById('signup-firstname').value;
+        const lastName = document.getElementById('signup-lastname').value;
         const email = document.getElementById('signup-email').value;
         const password = document.getElementById('signup-password').value;
         const confirm = document.getElementById('signup-confirm').value;
 
-        if (!name || !email || !password || !confirm) {
+        if (!firstName || !lastName || !email || !password || !confirm) {
             this.showError('Please fill in all fields');
             return;
         }
@@ -137,7 +138,7 @@ class ClaraApp {
             submitBtn.textContent = 'Creating Account...';
             submitBtn.disabled = true;
 
-            await authManager.signUp(email, password, name);
+            await authManager.signUp(email, password, firstName, lastName);
             console.log('✅ Sign up successful');
 
         } catch (error) {
@@ -213,11 +214,13 @@ class ClaraApp {
         if (signinPassword) signinPassword.value = '';
 
         // Clear sign up form
-        const signupName = document.getElementById('signup-name');
+        const signupFirstName = document.getElementById('signup-firstname');
+        const signupLastName = document.getElementById('signup-lastname');
         const signupEmail = document.getElementById('signup-email');
         const signupPassword = document.getElementById('signup-password');
         const signupConfirm = document.getElementById('signup-confirm');
-        if (signupName) signupName.value = '';
+        if (signupFirstName) signupFirstName.value = '';
+        if (signupLastName) signupLastName.value = '';
         if (signupEmail) signupEmail.value = '';
         if (signupPassword) signupPassword.value = '';
         if (signupConfirm) signupConfirm.value = '';
@@ -327,27 +330,204 @@ class ClaraApp {
         `;
     }
 
-    loadProfile() {
+    async loadProfile() {
         const container = document.getElementById('profile-content-container');
         if (!container) return;
 
         const user = authManager.getCurrentUser();
         
-        container.innerHTML = `
-            <div class="card">
-                <h3>Profile Information</h3>
-                <p><strong>Email:</strong> ${user?.email || 'Not available'}</p>
-                <p><strong>Display Name:</strong> ${user?.displayName || 'Not set'}</p>
-                <p><strong>Member Since:</strong> ${user?.metadata?.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'Not available'}</p>
-            </div>
-            <div class="card">
-                <h3>Privacy Settings</h3>
-                <p>Your privacy is important to us. All conversations in support groups are confidential.</p>
-                <button class="btn btn-primary mt-lg" onclick="alert('Privacy settings coming soon!')">
-                    Manage Privacy
-                </button>
-            </div>
-        `;
+        try {
+            // Get user profile data from Firestore
+            const profileDoc = await import('./config.js').then(module => 
+                import('https://www.gstatic.com/firebasejs/10.3.0/firebase-firestore.js').then(firestore => 
+                    firestore.getDoc(firestore.doc(module.db, module.COLLECTIONS.PROFILES, user.uid))
+                )
+            );
+            
+            const profileData = profileDoc.exists() ? profileDoc.data() : {};
+            
+            // Calculate level info
+            const currentLevel = authManager.calculateLevel(profileData.points || 0);
+            const pointsToNext = authManager.getPointsForNextLevel(profileData.points || 0);
+            
+            // Determine display name
+            let displayName = 'Not set';
+            if (profileData.showRealName && (profileData.firstName || profileData.lastName)) {
+                displayName = [profileData.firstName, profileData.lastName].filter(Boolean).join(' ');
+            } else if (profileData.displayName) {
+                displayName = profileData.displayName;
+            }
+            
+            container.innerHTML = `
+                <div class="card">
+                    <div class="profile-header">
+                        <div class="profile-avatar-section">
+                            <div class="profile-avatar" id="profile-avatar">
+                                ${profileData.avatarUrl ? 
+                                    `<img src="${profileData.avatarUrl}" alt="Profile picture" class="avatar-img">` :
+                                    `<div class="avatar-placeholder">
+                                        <span class="material-icons">person</span>
+                                    </div>`
+                                }
+                                <button class="avatar-upload-btn" id="avatar-upload-btn" title="Change profile picture">
+                                    <span class="material-icons">camera_alt</span>
+                                </button>
+                            </div>
+                            <input type="file" id="avatar-input" accept="image/*" style="display: none;">
+                        </div>
+                        <div class="profile-info">
+                            <h3>Profile Information</h3>
+                            <div class="profile-field">
+                                <strong>Name:</strong> ${displayName}
+                                ${!profileData.showRealName && (profileData.firstName || profileData.lastName) ? 
+                                    '<span class="privacy-note">(Real name hidden for privacy)</span>' : ''}
+                            </div>
+                            <div class="profile-field">
+                                <strong>Display Name:</strong> ${profileData.displayName || 'Not set'}
+                            </div>
+                            <div class="profile-field">
+                                <strong>Member Since:</strong> ${profileData.createdAt ? 
+                                    new Date(profileData.createdAt.toDate()).toLocaleDateString() : 'Not available'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>Community Level & Points</h3>
+                    <div class="level-info">
+                        <div class="level-badge">
+                            <span class="level-number">Level ${currentLevel}</span>
+                            <span class="points-count">${profileData.points || 0} points</span>
+                        </div>
+                        ${pointsToNext ? 
+                            `<div class="progress-bar">
+                                <div class="progress-fill" style="width: ${((profileData.points || 0) % pointsToNext) / pointsToNext * 100}%"></div>
+                            </div>
+                            <p class="next-level-text">${pointsToNext} points to Level ${currentLevel + 1}</p>` :
+                            '<p class="max-level-text">🎉 Maximum level reached!</p>'
+                        }
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-number">${profileData.stats?.postsCount || 0}</span>
+                            <span class="stat-label">Posts</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">${profileData.stats?.commentsCount || 0}</span>
+                            <span class="stat-label">Comments</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">${profileData.stats?.likesGivenCount || 0}</span>
+                            <span class="stat-label">Likes Given</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">${profileData.stats?.likesReceivedCount || 0}</span>
+                            <span class="stat-label">Likes Received</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>Privacy Settings</h3>
+                    <div class="privacy-setting">
+                        <label class="privacy-toggle">
+                            <input type="checkbox" id="show-real-name" ${profileData.showRealName ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label">Show real name instead of display name</span>
+                        </label>
+                        <p class="setting-description">When enabled, other users will see your real name. Your privacy is important to us.</p>
+                    </div>
+                    <button class="btn btn-primary mt-lg" onclick="alert('More privacy settings coming soon!')">
+                        Manage All Privacy Settings
+                    </button>
+                </div>
+            `;
+            
+            // Set up avatar upload functionality
+            this.setupAvatarUpload();
+            this.setupPrivacyToggle();
+            
+        } catch (error) {
+            console.error('❌ Error loading profile:', error);
+            container.innerHTML = `
+                <div class="card">
+                    <h3>Profile Information</h3>
+                    <p class="error-message">Unable to load profile data. Please try refreshing the page.</p>
+                </div>
+            `;
+        }
+    }
+
+    setupAvatarUpload() {
+        const uploadBtn = document.getElementById('avatar-upload-btn');
+        const fileInput = document.getElementById('avatar-input');
+
+        if (uploadBtn && fileInput) {
+            uploadBtn.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                try {
+                    uploadBtn.innerHTML = '<span class="material-icons spinning">hourglass_empty</span>';
+                    uploadBtn.disabled = true;
+
+                    const downloadURL = await authManager.uploadProfilePicture(file);
+                    
+                    // Update the avatar display
+                    const avatarContainer = document.getElementById('profile-avatar');
+                    const avatarImg = avatarContainer.querySelector('.avatar-img') || avatarContainer.querySelector('.avatar-placeholder');
+                    
+                    if (avatarImg) {
+                        avatarImg.outerHTML = `<img src="${downloadURL}" alt="Profile picture" class="avatar-img">`;
+                    }
+
+                    console.log('✅ Profile picture updated');
+                    
+                } catch (error) {
+                    console.error('❌ Error uploading avatar:', error);
+                    alert(error.message);
+                } finally {
+                    uploadBtn.innerHTML = '<span class="material-icons">camera_alt</span>';
+                    uploadBtn.disabled = false;
+                    fileInput.value = '';
+                }
+            });
+        }
+    }
+
+    setupPrivacyToggle() {
+        const toggle = document.getElementById('show-real-name');
+        if (toggle) {
+            toggle.addEventListener('change', async (e) => {
+                try {
+                    const user = authManager.getCurrentUser();
+                    if (!user) return;
+
+                    const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.3.0/firebase-firestore.js');
+                    const { db, COLLECTIONS } = await import('./config.js');
+                    
+                    await updateDoc(doc(db, COLLECTIONS.PROFILES, user.uid), {
+                        showRealName: e.target.checked
+                    });
+
+                    // Reload profile to show updated name display
+                    this.loadProfile();
+                    
+                    console.log('✅ Privacy setting updated');
+                } catch (error) {
+                    console.error('❌ Error updating privacy setting:', error);
+                    // Revert toggle if failed
+                    e.target.checked = !e.target.checked;
+                    alert('Failed to update privacy setting. Please try again.');
+                }
+            });
+        }
     }
 
     showError(message) {
