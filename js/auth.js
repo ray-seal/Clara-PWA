@@ -513,8 +513,10 @@ class AuthManager {
 
         try {
             console.log(`👍 Toggling like for post ${postId}...`);
+            console.log(`👤 Current user: ${this.currentUser.uid}`);
             
             const postRef = doc(db, COLLECTIONS.POSTS, postId);
+            console.log(`📄 Getting post document...`);
             const postDoc = await getDoc(postRef);
             
             if (!postDoc.exists()) throw new Error('Post not found');
@@ -559,6 +561,9 @@ class AuthManager {
             return !userLiked; // Return new like state
         } catch (error) {
             console.error('❌ Error toggling like:', error);
+            console.error('❌ Like error code:', error.code);
+            console.error('❌ Like error message:', error.message);
+            console.error('❌ Full like error:', error);
             throw error;
         }
     }
@@ -619,6 +624,10 @@ class AuthManager {
         if (!this.currentUser) throw new Error('Not authenticated');
 
         try {
+            console.log(`💬 Adding comment to post ${postId}...`);
+            console.log(`👤 Current user: ${this.currentUser.uid}`);
+            console.log(`📝 Comment content: ${content.trim()}`);
+            
             const commentData = {
                 postId: postId,
                 uid: this.currentUser.uid,
@@ -626,6 +635,7 @@ class AuthManager {
                 createdAt: new Date()
             };
 
+            console.log(`📦 Comment data:`, commentData);
             await addDoc(collection(db, COLLECTIONS.COMMENTS), commentData);
             
             // Update post comment count
@@ -640,6 +650,9 @@ class AuthManager {
             console.log('✅ Comment added successfully');
         } catch (error) {
             console.error('❌ Error adding comment:', error);
+            console.error('❌ Comment error code:', error.code);
+            console.error('❌ Comment error message:', error.message);
+            console.error('❌ Full comment error:', error);
             throw error;
         }
     }
