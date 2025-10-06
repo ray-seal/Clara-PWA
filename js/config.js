@@ -71,5 +71,13 @@ export const APP_CONFIG = {
       icon: '🧠',
       color: '#3498DB'
     }
+    
+    {
+      id: 'gender-identity',
+      name: 'Gender and Identity',
+      description: 'Overall mental health discussions and wellness tips',
+      icon: '🏳️‍🌈',
+      color: '#8a2be2'
+    }
   ]
 };
