@@ -250,8 +250,8 @@ class ClaraApp {
         // Load welcome content or initial data
         console.log('📱 Loading main app content...');
         
-        // Load support groups
-        this.loadSupportGroups();
+        // Load the currently active tab (feed by default)
+        this.loadTabContent(this.currentTab);
     }
 
     loadTabContent(tabName) {
@@ -272,9 +272,14 @@ class ClaraApp {
     }
 
     loadFeed() {
+        console.log('📱 Loading feed tab...');
         const container = document.getElementById('posts-container');
-        if (!container) return;
+        if (!container) {
+            console.error('❌ Posts container not found!');
+            return;
+        }
 
+        console.log('✅ Posts container found, setting up feed UI...');
         container.innerHTML = `
             <!-- Simple Post Input -->
             <div class="card post-input-card">
@@ -310,9 +315,12 @@ class ClaraApp {
         
         // Load and display posts
         this.loadPosts();
+        
+        console.log('✅ Feed setup complete');
     }
 
     setupSimplePostCreation() {
+        console.log('🔧 Setting up post creation...');
         const input = document.getElementById('post-input');
         const submitBtn = document.getElementById('post-submit-btn');
         const addImageBtn = document.getElementById('add-image-icon');
@@ -320,6 +328,17 @@ class ClaraApp {
         const imagePreview = document.getElementById('image-preview-simple');
         const previewImg = document.getElementById('preview-img-simple');
         const removeImageBtn = document.getElementById('remove-image-simple');
+
+        if (!input || !submitBtn || !addImageBtn) {
+            console.error('❌ Post creation elements not found!', {
+                input: !!input,
+                submitBtn: !!submitBtn, 
+                addImageBtn: !!addImageBtn
+            });
+            return;
+        }
+
+        console.log('✅ Post creation elements found, setting up events...');
 
         // Enable submit button when there's content
         input.addEventListener('input', () => {
@@ -405,11 +424,16 @@ class ClaraApp {
     }
 
     async loadPosts() {
+        console.log('📥 Loading posts...');
         const container = document.getElementById('posts-feed');
-        if (!container) return;
+        if (!container) {
+            console.error('❌ Posts feed container not found!');
+            return;
+        }
 
         try {
             const posts = await authManager.getPosts();
+            console.log(`✅ Loaded ${posts.length} posts`);
             
             if (posts.length === 0) {
                 container.innerHTML = `
@@ -433,6 +457,7 @@ class ClaraApp {
                 <div class="card error-loading">
                     <h3>Error loading posts</h3>
                     <p>Please try refreshing the page.</p>
+                    <p><small>Error: ${error.message}</small></p>
                 </div>
             `;
         }
