@@ -917,7 +917,7 @@ class ClaraApp {
             <div class="card">
                 <h3>🆘 Crisis Resources</h3>
                 <p>Immediate help and resources for mental health crises.</p>
-                <button class="btn btn-primary mt-lg" onclick="alert('Crisis: Call 988 for immediate help')">
+                <button class="btn btn-primary mt-lg" onclick="alert('Crisis: Call 999 or 111 for immediate help')">
                     Get Help Now
                 </button>
             </div>
