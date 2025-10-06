@@ -883,33 +883,21 @@ class ClaraApp {
         if (!container) return;
 
         const groupsHtml = APP_CONFIG.SUPPORT_GROUPS.map(group => `
-            <div class="support-group-card" data-group-id="${group.id}" style="border-left: 4px solid ${group.color}">
-                <div class="group-header">
-                    <div class="group-icon">${group.icon}</div>
-                    <div class="group-title">
-                        <h3>${group.name}</h3>
-                    </div>
-                </div>
-                <p class="group-description">${group.description}</p>
-                <div class="group-stats">
-                    <div class="group-stat">
-                        <span class="material-icons">people</span>
-                        <span>Active members</span>
-                    </div>
-                    <div class="group-stat">
-                        <span class="material-icons">chat</span>
-                        <span>${group.id === 'anxiety-support' ? 'Chat Available' : 'Coming Soon'}</span>
-                    </div>
-                </div>
+            <div class="card" style="border-left: 4px solid ${group.color}">
+                <h3>${group.icon} ${group.name}</h3>
+                <p>${group.description}</p>
+                <button class="btn btn-primary mt-lg" data-group-id="${group.id}">
+                    Join Group
+                </button>
             </div>
         `).join('');
 
         container.innerHTML = groupsHtml;
 
-        // Add click listeners for group cards
-        document.querySelectorAll('.support-group-card').forEach(card => {
-            card.addEventListener('click', (e) => {
-                const groupId = e.currentTarget.dataset.groupId;
+        // Add click listeners for join buttons only
+        document.querySelectorAll('[data-group-id]').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const groupId = e.target.dataset.groupId;
                 if (groupId === 'anxiety-support') {
                     this.openChatRoom(groupId);
                 } else {
