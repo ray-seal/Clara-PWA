@@ -883,16 +883,40 @@ class ClaraApp {
         if (!container) return;
 
         const groupsHtml = APP_CONFIG.SUPPORT_GROUPS.map(group => `
-            <div class="card" style="border-left: 4px solid ${group.color}">
-                <h3>${group.icon} ${group.name}</h3>
-                <p>${group.description}</p>
-                <button class="btn btn-primary mt-lg" onclick="alert('Group chat coming soon!')">
-                    Join Group
-                </button>
+            <div class="support-group-card" data-group-id="${group.id}" style="border-left: 4px solid ${group.color}">
+                <div class="group-header">
+                    <div class="group-icon">${group.icon}</div>
+                    <div class="group-title">
+                        <h3>${group.name}</h3>
+                    </div>
+                </div>
+                <p class="group-description">${group.description}</p>
+                <div class="group-stats">
+                    <div class="group-stat">
+                        <span class="material-icons">people</span>
+                        <span>Active members</span>
+                    </div>
+                    <div class="group-stat">
+                        <span class="material-icons">chat</span>
+                        <span>${group.id === 'anxiety-support' ? 'Chat Available' : 'Coming Soon'}</span>
+                    </div>
+                </div>
             </div>
         `).join('');
 
         container.innerHTML = groupsHtml;
+
+        // Add click listeners for group cards
+        document.querySelectorAll('.support-group-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                const groupId = e.currentTarget.dataset.groupId;
+                if (groupId === 'anxiety-support') {
+                    this.openChatRoom(groupId);
+                } else {
+                    alert('This support group chat is coming soon!');
+                }
+            });
+        });
     }
 
     loadWellnessTools() {
@@ -917,7 +941,7 @@ class ClaraApp {
             <div class="card">
                 <h3>🆘 Crisis Resources</h3>
                 <p>Immediate help and resources for mental health crises.</p>
-                <button class="btn btn-primary mt-lg" onclick="alert('Crisis: Call 988 for immediate help')">
+                <button class="btn btn-primary mt-lg" onclick="alert('Crisis: Call 999 or 111 for immediate help')">
                     Get Help Now
                 </button>
             </div>
@@ -1241,6 +1265,257 @@ class ClaraApp {
                     submitBtn.disabled = false;
                 }
             });
+        }
+    }
+
+    // =====================================================
+    // CHAT ROOM FUNCTIONALITY
+    // =====================================================
+
+    openChatRoom(groupId) {
+        console.log(`💬 Opening chat room for ${groupId}...`);
+        
+        // Hide groups list and show chat room
+        document.getElementById('groups-list-view').style.display = 'none';
+        document.getElementById('anxiety-chat-room').style.display = 'block';
+        
+        // Initialize chat
+        this.initializeChatRoom(groupId);
+    }
+
+    async initializeChatRoom(groupId) {
+        this.currentChatGroup = groupId;
+        this.chatUnsubscribers = this.chatUnsubscribers || [];
+        
+        // Set up back button
+        document.getElementById('back-to-groups').addEventListener('click', () => {
+            this.closeChatRoom();
+        });
+        
+        // Set up message input and send button
+        this.setupChatInput();
+        
+        // Update user presence
+        await authManager.updateUserPresence(groupId, true);
+        
+        // Subscribe to chat messages
+        const messagesUnsubscriber = authManager.subscribeToChatMessages(groupId, (messages) => {
+            this.displayChatMessages(messages);
+        });
+        this.chatUnsubscribers.push(messagesUnsubscriber);
+        
+        // Subscribe to active members
+        const membersUnsubscriber = authManager.subscribeToActiveMembers(groupId, (members) => {
+            this.displayActiveMembers(members);
+        });
+        this.chatUnsubscribers.push(membersUnsubscriber);
+        
+        console.log('✅ Chat room initialized');
+    }
+
+    closeChatRoom() {
+        console.log('❌ Closing chat room...');
+        
+        // Update user presence to inactive
+        if (this.currentChatGroup) {
+            authManager.updateUserPresence(this.currentChatGroup, false);
+        }
+        
+        // Unsubscribe from real-time listeners
+        if (this.chatUnsubscribers) {
+            this.chatUnsubscribers.forEach(unsubscriber => {
+                if (typeof unsubscriber === 'function') {
+                    unsubscriber();
+                }
+            });
+            this.chatUnsubscribers = [];
+        }
+        
+        // Show groups list and hide chat room
+        document.getElementById('anxiety-chat-room').style.display = 'none';
+        document.getElementById('groups-list-view').style.display = 'block';
+        
+        this.currentChatGroup = null;
+    }
+
+    setupChatInput() {
+        const messageInput = document.getElementById('chat-message-input');
+        const sendButton = document.getElementById('send-message-btn');
+        
+        if (!messageInput || !sendButton) return;
+        
+        // Handle send button click
+        sendButton.addEventListener('click', () => {
+            this.sendChatMessage();
+        });
+        
+        // Handle Enter key press
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.sendChatMessage();
+            }
+        });
+        
+        // Auto-resize input and update send button state
+        messageInput.addEventListener('input', () => {
+            const content = messageInput.value.trim();
+            sendButton.disabled = content.length === 0;
+        });
+        
+        // Initial state
+        sendButton.disabled = true;
+    }
+
+    async sendChatMessage() {
+        const messageInput = document.getElementById('chat-message-input');
+        const sendButton = document.getElementById('send-message-btn');
+        
+        if (!messageInput || !sendButton || !this.currentChatGroup) return;
+        
+        const content = messageInput.value.trim();
+        if (!content) return;
+        
+        try {
+            // Disable input while sending
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+            sendButton.innerHTML = '<span class="material-icons spinning">hourglass_empty</span>';
+            
+            // Send message
+            await authManager.sendChatMessage(this.currentChatGroup, content);
+            
+            // Clear input
+            messageInput.value = '';
+            
+            // Scroll to bottom
+            this.scrollChatToBottom();
+            
+        } catch (error) {
+            console.error('❌ Error sending message:', error);
+            alert('Failed to send message. Please try again.');
+        } finally {
+            // Re-enable input
+            messageInput.disabled = false;
+            sendButton.innerHTML = '<span class="material-icons">send</span>';
+            sendButton.disabled = false;
+            messageInput.focus();
+        }
+    }
+
+    displayChatMessages(messages) {
+        const messagesContainer = document.getElementById('chat-messages');
+        if (!messagesContainer) return;
+        
+        if (messages.length === 0) {
+            messagesContainer.innerHTML = `
+                <div class="no-messages">
+                    <span class="material-icons">chat_bubble_outline</span>
+                    <h3>No messages yet</h3>
+                    <p>Be the first to share a supportive message in this group!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const messagesHtml = messages.map(message => {
+            const displayName = message.author?.showRealName && (message.author?.firstName || message.author?.lastName)
+                ? [message.author.firstName, message.author.lastName].filter(Boolean).join(' ')
+                : message.author?.displayName || 'Anonymous';
+            
+            const heartCount = message.heartReactions?.length || 0;
+            const userReacted = message.heartReactions?.includes(authManager.currentUser?.uid) || false;
+            
+            return `
+                <div class="chat-message" data-message-id="${message.id}">
+                    <div class="message-avatar">
+                        ${message.author?.avatarUrl ?
+                            `<img src="${message.author.avatarUrl}" alt="${displayName}">` :
+                            `<div class="message-avatar-placeholder">
+                                <span class="material-icons">person</span>
+                            </div>`
+                        }
+                    </div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="message-author">${displayName}</span>
+                            <span class="message-time">${this.formatTimeAgo(message.createdAt)}</span>
+                        </div>
+                        <div class="message-text">${this.formatPostContent(message.content)}</div>
+                        <div class="message-actions">
+                            <button class="heart-reaction ${userReacted ? 'active' : ''}" onclick="window.claraApp.toggleHeartReaction('${message.id}')">
+                                <span class="material-icons">${userReacted ? 'favorite' : 'favorite_border'}</span>
+                                ${heartCount > 0 ? `<span class="reaction-count">${heartCount}</span>` : ''}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        messagesContainer.innerHTML = messagesHtml;
+        this.scrollChatToBottom();
+    }
+
+    displayActiveMembers(members) {
+        const membersContainer = document.getElementById('active-members-list');
+        const activeCount = document.getElementById('active-count');
+        
+        if (!membersContainer || !activeCount) return;
+        
+        activeCount.textContent = members.length;
+        
+        if (members.length === 0) {
+            membersContainer.innerHTML = `
+                <div class="no-members">
+                    <span class="material-icons">people_outline</span>
+                    <p>No active members</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const membersHtml = members.map(member => {
+            const displayName = member.profile?.showRealName && (member.profile?.firstName || member.profile?.lastName)
+                ? [member.profile.firstName, member.profile.lastName].filter(Boolean).join(' ')
+                : member.profile?.displayName || 'Anonymous';
+            
+            return `
+                <div class="active-member">
+                    <div class="member-avatar">
+                        ${member.profile?.avatarUrl ?
+                            `<img src="${member.profile.avatarUrl}" alt="${displayName}">` :
+                            `<div class="member-avatar-placeholder">
+                                <span class="material-icons">person</span>
+                            </div>`
+                        }
+                        <div class="member-status"></div>
+                    </div>
+                    <div class="member-info">
+                        <div class="member-name">${displayName}</div>
+                        <div class="member-last-seen">${this.formatTimeAgo(member.lastSeen)}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        membersContainer.innerHTML = membersHtml;
+    }
+
+    async toggleHeartReaction(messageId) {
+        try {
+            await authManager.toggleHeartReaction(messageId);
+            console.log(`💖 Toggled heart reaction for message ${messageId}`);
+        } catch (error) {
+            console.error('❌ Error toggling heart reaction:', error);
+            alert('Failed to add reaction. Please try again.');
+        }
+    }
+
+    scrollChatToBottom() {
+        const messagesContainer = document.getElementById('chat-messages');
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
     }
 

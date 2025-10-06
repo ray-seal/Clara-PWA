@@ -148,10 +148,56 @@
             <!-- Support Groups Tab -->
             <div id="support-groups-tab" class="tab-content">
                 <div class="support-groups-container">
-                    <h2>Support Groups</h2>
-                    <p>Connect with others who understand your journey.</p>
-                    <div id="groups-container" class="groups-container">
-                        <!-- Support groups will be loaded here -->
+                    <!-- Groups List View -->
+                    <div id="groups-list-view" class="groups-list-view">
+                        <h2>Support Groups</h2>
+                        <p>Connect with others who understand your journey.</p>
+                        <div id="groups-container" class="groups-container">
+                            <!-- Support groups will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Anxiety Support Chat Room -->
+                    <div id="anxiety-chat-room" class="chat-room" style="display: none;">
+                        <div class="chat-header">
+                            <button id="back-to-groups" class="back-button">
+                                <span class="material-icons">arrow_back</span>
+                            </button>
+                            <div class="chat-title">
+                                <h2>💙 Anxiety Support</h2>
+                                <p>A safe space to discuss anxiety and coping strategies</p>
+                            </div>
+                        </div>
+                        
+                        <div class="chat-main">
+                            <!-- Chat Messages Area -->
+                            <div class="chat-messages-container">
+                                <div id="chat-messages" class="chat-messages">
+                                    <!-- Messages will be loaded here -->
+                                </div>
+                                
+                                <!-- Message Input -->
+                                <div class="chat-input-container">
+                                    <div class="chat-input-wrapper">
+                                        <input type="text" id="chat-message-input" placeholder="Type a supportive message..." maxlength="500">
+                                        <button id="send-message-btn" class="send-button">
+                                            <span class="material-icons">send</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Active Members Sidebar -->
+                            <div class="active-members-sidebar">
+                                <div class="sidebar-header">
+                                    <h3>Active Members</h3>
+                                    <span id="active-count" class="active-count">0</span>
+                                </div>
+                                <div id="active-members-list" class="active-members-list">
+                                    <!-- Active members will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

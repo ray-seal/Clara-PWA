@@ -22,7 +22,9 @@ import {
     getDocs,
     deleteDoc,
     arrayUnion,
-    arrayRemove
+    arrayRemove,
+    onSnapshot,
+    serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.3.0/firebase-firestore.js';
 import { 
     ref, 
@@ -227,7 +229,9 @@ class AuthManager {
             'comment': 2,
             'like': 1,
             'helpful_response': 5,
-            'weekly_active': 10
+            'weekly_active': 10,
+            'chatMessage': 3,
+            'heartReaction': 1
         };
 
         const points = pointValues[actionType] || 0;
@@ -794,6 +798,202 @@ class AuthManager {
             console.error('❌ Error reporting post:', error);
             throw error;
         }
+    }
+
+    // =====================================================
+    // CHAT FUNCTIONALITY
+    // =====================================================
+
+    // Send a chat message
+    async sendChatMessage(groupId, content) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            console.log(`💬 Sending chat message to ${groupId}...`);
+            
+            const messageData = {
+                groupId: groupId,
+                uid: this.currentUser.uid,
+                content: content.trim(),
+                createdAt: serverTimestamp(),
+                heartReactions: []
+            };
+
+            const messageRef = await addDoc(collection(db, COLLECTIONS.CHAT_MESSAGES), messageData);
+            
+            // Award points for chat participation
+            await this.awardPoints(this.currentUser.uid, 'chatMessage');
+            
+            console.log('✅ Chat message sent successfully');
+            return messageRef.id;
+        } catch (error) {
+            console.error('❌ Error sending chat message:', error);
+            throw error;
+        }
+    }
+
+    // Listen to chat messages in real-time
+    subscribeToChatMessages(groupId, callback) {
+        console.log(`👂 Subscribing to chat messages for ${groupId}...`);
+        
+        const messagesQuery = query(
+            collection(db, COLLECTIONS.CHAT_MESSAGES),
+            where('groupId', '==', groupId),
+            orderBy('createdAt', 'asc')
+        );
+
+        return onSnapshot(messagesQuery, async (snapshot) => {
+            console.log(`📨 Received ${snapshot.docs.length} messages`);
+            
+            const messages = [];
+            
+            for (const doc of snapshot.docs) {
+                const messageData = { id: doc.id, ...doc.data() };
+                
+                try {
+                    // Get author profile
+                    const authorProfile = await this.getUserProfile(messageData.uid);
+                    messageData.author = authorProfile || {
+                        displayName: 'Unknown User',
+                        firstName: 'Unknown',
+                        lastName: 'User',
+                        showRealName: false,
+                        avatarUrl: null
+                    };
+                    
+                    messages.push(messageData);
+                } catch (profileError) {
+                    console.warn('⚠️ Error loading message author profile:', doc.id, profileError);
+                    messageData.author = {
+                        displayName: 'Unknown User',
+                        firstName: 'Unknown',
+                        lastName: 'User',
+                        showRealName: false,
+                        avatarUrl: null
+                    };
+                    messages.push(messageData);
+                }
+            }
+            
+            console.log(`✅ Processed ${messages.length} chat messages`);
+            callback(messages);
+        }, (error) => {
+            console.error('❌ Error listening to chat messages:', error);
+            callback([]);
+        });
+    }
+
+    // Toggle heart reaction on a chat message
+    async toggleHeartReaction(messageId) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            console.log(`💖 Toggling heart reaction on message ${messageId}...`);
+            
+            const messageRef = doc(db, COLLECTIONS.CHAT_MESSAGES, messageId);
+            const messageDoc = await getDoc(messageRef);
+            
+            if (!messageDoc.exists()) throw new Error('Message not found');
+            
+            const messageData = messageDoc.data();
+            const reactions = messageData.heartReactions || [];
+            const userReacted = reactions.includes(this.currentUser.uid);
+            
+            if (userReacted) {
+                // Remove heart reaction
+                await updateDoc(messageRef, {
+                    heartReactions: arrayRemove(this.currentUser.uid)
+                });
+                console.log('💔 Heart reaction removed');
+            } else {
+                // Add heart reaction
+                await updateDoc(messageRef, {
+                    heartReactions: arrayUnion(this.currentUser.uid)
+                });
+                
+                // Award points for giving a reaction
+                await this.awardPoints(this.currentUser.uid, 'heartReaction');
+                console.log('💖 Heart reaction added');
+            }
+            
+            return !userReacted; // Return new reaction state
+        } catch (error) {
+            console.error('❌ Error toggling heart reaction:', error);
+            throw error;
+        }
+    }
+
+    // Update user presence for active members
+    async updateUserPresence(groupId, isActive = true) {
+        if (!this.currentUser) return;
+
+        try {
+            const presenceRef = doc(db, COLLECTIONS.USER_PRESENCE, `${groupId}_${this.currentUser.uid}`);
+            
+            if (isActive) {
+                await setDoc(presenceRef, {
+                    uid: this.currentUser.uid,
+                    groupId: groupId,
+                    lastSeen: serverTimestamp(),
+                    isActive: true
+                }, { merge: true });
+            } else {
+                await updateDoc(presenceRef, {
+                    isActive: false,
+                    lastSeen: serverTimestamp()
+                });
+            }
+        } catch (error) {
+            console.error('❌ Error updating user presence:', error);
+        }
+    }
+
+    // Listen to active members in real-time
+    subscribeToActiveMembers(groupId, callback) {
+        console.log(`👥 Subscribing to active members for ${groupId}...`);
+        
+        const presenceQuery = query(
+            collection(db, COLLECTIONS.USER_PRESENCE),
+            where('groupId', '==', groupId),
+            where('isActive', '==', true)
+        );
+
+        return onSnapshot(presenceQuery, async (snapshot) => {
+            console.log(`👥 Found ${snapshot.docs.length} active members`);
+            
+            const activeMembers = [];
+            
+            for (const doc of snapshot.docs) {
+                const presenceData = doc.data();
+                
+                try {
+                    // Get user profile
+                    const userProfile = await this.getUserProfile(presenceData.uid);
+                    if (userProfile) {
+                        activeMembers.push({
+                            uid: presenceData.uid,
+                            lastSeen: presenceData.lastSeen,
+                            profile: userProfile
+                        });
+                    }
+                } catch (profileError) {
+                    console.warn('⚠️ Error loading active member profile:', presenceData.uid, profileError);
+                }
+            }
+            
+            // Sort by last seen (most recent first)
+            activeMembers.sort((a, b) => {
+                const timeA = a.lastSeen?.toDate ? a.lastSeen.toDate() : new Date(a.lastSeen || 0);
+                const timeB = b.lastSeen?.toDate ? b.lastSeen.toDate() : new Date(b.lastSeen || 0);
+                return timeB - timeA;
+            });
+            
+            console.log(`✅ Processed ${activeMembers.length} active members`);
+            callback(activeMembers);
+        }, (error) => {
+            console.error('❌ Error listening to active members:', error);
+            callback([]);
+        });
     }
 }
 

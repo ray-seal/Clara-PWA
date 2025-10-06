@@ -29,6 +29,9 @@ export const COLLECTIONS = {
   COMMENTS: 'comments',
   SUPPORT_GROUPS: 'supportGroups',
   GROUP_MESSAGES: 'groupMessages',
+  CHAT_MESSAGES: 'chatMessages',
+  CHAT_REACTIONS: 'chatReactions',
+  USER_PRESENCE: 'userPresence',
   NOTIFICATIONS: 'notifications',
   REPORTS: 'reports'
 };
@@ -70,6 +73,25 @@ export const APP_CONFIG = {
       description: 'Overall mental health discussions and wellness tips',
       icon: '🧠',
       color: '#3498DB'
+    },
+    {
+      id: 'gender-identity',
+      name: 'Gender and Identity',
+      description: 'Overall mental health discussions and wellness tips',
+      icon: '🏳️‍🌈',
+      color: '#8a2be2'
     }
-  ]
+  ],
+  
+  // Points system for gamification
+  POINTS: {
+    SIGNUP: 50,
+    POST: 10,
+    COMMENT: 5,
+    LIKE: 2,
+    LIKE_RECEIVED: 3,
+    CHAT_MESSAGE: 3,
+    HEART_REACTION: 1,
+    DAILY_LOGIN: 5
+  }
 };
