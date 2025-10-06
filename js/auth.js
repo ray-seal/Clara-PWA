@@ -840,7 +840,8 @@ class AuthManager {
         
         const messagesQuery = query(
             collection(db, COLLECTIONS.CHAT_MESSAGES),
-            where('groupId', '==', groupId)
+            where('groupId', '==', groupId),
+            orderBy('createdAt', 'asc')
         );
 
         return onSnapshot(messagesQuery, async (snapshot) => {
@@ -876,13 +877,6 @@ class AuthManager {
                     messages.push(messageData);
                 }
             }
-            
-            // Sort messages by creation date (oldest first)
-            messages.sort((a, b) => {
-                const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-                const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-                return dateA - dateB;
-            });
             
             console.log(`✅ Processed ${messages.length} chat messages`);
             console.log(`📤 Calling callback with messages:`, messages);
