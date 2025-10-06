@@ -1279,10 +1279,15 @@ class ClaraApp {
         // Small delay to ensure DOM is ready
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Set up back button
+        // Set up back button (remove existing listeners first)
         const backButton = document.getElementById('back-to-groups');
         if (backButton) {
-            backButton.addEventListener('click', () => {
+            // Clone to remove all existing listeners
+            const newBackButton = backButton.cloneNode(true);
+            backButton.parentNode.replaceChild(newBackButton, backButton);
+            
+            // Add single listener to the fresh button
+            newBackButton.addEventListener('click', () => {
                 this.closeChatRoom();
             });
         }
@@ -1382,13 +1387,23 @@ class ClaraApp {
             return;
         }
         
-        // Handle send button click
-        sendButton.addEventListener('click', () => {
+        // Remove existing event listeners by cloning elements (removes all listeners)
+        const newSendButton = sendButton.cloneNode(true);
+        const newMessageInput = messageInput.cloneNode(true);
+        sendButton.parentNode.replaceChild(newSendButton, sendButton);
+        messageInput.parentNode.replaceChild(newMessageInput, messageInput);
+        
+        // Get references to the new elements
+        const freshMessageInput = document.getElementById('chat-message-input');
+        const freshSendButton = document.getElementById('send-message-btn');
+        
+        // Handle send button click (single listener)
+        freshSendButton.addEventListener('click', () => {
             this.sendChatMessage();
         });
         
-        // Handle Enter key press
-        messageInput.addEventListener('keypress', (e) => {
+        // Handle Enter key press (single listener)
+        freshMessageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 this.sendChatMessage();
@@ -1396,16 +1411,23 @@ class ClaraApp {
         });
         
         // Auto-resize input and update send button state
-        messageInput.addEventListener('input', () => {
-            const content = messageInput.value.trim();
-            sendButton.disabled = content.length === 0;
+        freshMessageInput.addEventListener('input', () => {
+            const content = freshMessageInput.value.trim();
+            freshSendButton.disabled = content.length === 0;
         });
         
         // Initial state
-        sendButton.disabled = true;
+        freshSendButton.disabled = true;
+        console.log('✅ Chat input setup completed with fresh listeners');
     }
 
     async sendChatMessage() {
+        // Prevent duplicate sends
+        if (this.isSendingMessage) {
+            console.log('⚠️ Already sending a message, skipping...');
+            return;
+        }
+        
         const messageInput = document.getElementById('chat-message-input');
         const sendButton = document.getElementById('send-message-btn');
         
@@ -1415,6 +1437,9 @@ class ClaraApp {
         if (!content) return;
         
         try {
+            // Set sending state
+            this.isSendingMessage = true;
+            
             // Disable input while sending
             messageInput.disabled = true;
             sendButton.disabled = true;
@@ -1433,6 +1458,9 @@ class ClaraApp {
             console.error('❌ Error sending message:', error);
             alert('Failed to send message. Please try again.');
         } finally {
+            // Reset sending state
+            this.isSendingMessage = false;
+            
             // Re-enable input
             messageInput.disabled = false;
             sendButton.innerHTML = '<span class="material-icons">send</span>';
