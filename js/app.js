@@ -276,12 +276,476 @@ class ClaraApp {
         if (!container) return;
 
         container.innerHTML = `
-            <div class="card">
-                <h3>Welcome to Your Feed</h3>
-                <p>This is where you'll see updates from your support groups and wellness activities.</p>
-                <p><em>Content coming soon...</em></p>
+            <!-- Post Creation Form -->
+            <div class="card post-creation-card">
+                <h3>Share with the Community</h3>
+                <form id="create-post-form">
+                    <div class="form-group">
+                        <textarea id="post-content" placeholder="What's on your mind? Share your thoughts, experiences, or ask for support..." rows="4" maxlength="1000"></textarea>
+                        <div class="char-counter">
+                            <span id="char-count">0</span>/1000
+                        </div>
+                    </div>
+                    <div class="post-image-section">
+                        <input type="file" id="post-image" accept="image/*" style="display: none;">
+                        <div id="image-preview" class="image-preview" style="display: none;">
+                            <img id="preview-img" src="" alt="Preview">
+                            <button type="button" class="remove-image-btn" id="remove-image">
+                                <span class="material-icons">close</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="post-actions">
+                        <button type="button" class="btn btn-secondary" id="add-image-btn">
+                            <span class="material-icons">image</span>
+                            Add Image
+                        </button>
+                        <button type="submit" class="btn btn-primary" disabled>
+                            <span class="material-icons">send</span>
+                            Share Post
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Posts Feed -->
+            <div id="posts-feed" class="posts-feed">
+                <div class="loading-posts">
+                    <span class="material-icons spinning">refresh</span>
+                    <p>Loading posts...</p>
+                </div>
             </div>
         `;
+
+        // Set up post creation functionality
+        this.setupPostCreation();
+        
+        // Load and display posts
+        this.loadPosts();
+    }
+
+    setupPostCreation() {
+        const form = document.getElementById('create-post-form');
+        const textarea = document.getElementById('post-content');
+        const charCount = document.getElementById('char-count');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const addImageBtn = document.getElementById('add-image-btn');
+        const imageInput = document.getElementById('post-image');
+        const imagePreview = document.getElementById('image-preview');
+        const previewImg = document.getElementById('preview-img');
+        const removeImageBtn = document.getElementById('remove-image');
+
+        // Character counter and submit button state
+        textarea.addEventListener('input', () => {
+            const length = textarea.value.length;
+            charCount.textContent = length;
+            submitBtn.disabled = length === 0;
+        });
+
+        // Image upload handling
+        addImageBtn.addEventListener('click', () => {
+            imageInput.click();
+        });
+
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('Image must be less than 5MB');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImg.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                    addImageBtn.textContent = 'Change Image';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        removeImageBtn.addEventListener('click', () => {
+            imageInput.value = '';
+            imagePreview.style.display = 'none';
+            addImageBtn.innerHTML = '<span class="material-icons">image</span> Add Image';
+        });
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const content = textarea.value.trim();
+            const imageFile = imageInput.files[0];
+            
+            if (!content) {
+                alert('Please enter some content for your post.');
+                return;
+            }
+
+            const originalSubmitText = submitBtn.innerHTML;
+            
+            try {
+                submitBtn.innerHTML = '<span class="material-icons spinning">hourglass_empty</span> Sharing...';
+                submitBtn.disabled = true;
+
+                await authManager.createPost(content, imageFile);
+                
+                // Reset form
+                textarea.value = '';
+                charCount.textContent = '0';
+                imageInput.value = '';
+                imagePreview.style.display = 'none';
+                addImageBtn.innerHTML = '<span class="material-icons">image</span> Add Image';
+
+                // Reload posts
+                this.loadPosts();
+                
+                console.log('✅ Post created successfully');
+                
+            } catch (error) {
+                console.error('❌ Error creating post:', error);
+                alert(error.message);
+            } finally {
+                submitBtn.innerHTML = originalSubmitText;
+                submitBtn.disabled = textarea.value.length === 0;
+            }
+        });
+    }
+
+    async loadPosts() {
+        const container = document.getElementById('posts-feed');
+        if (!container) return;
+
+        try {
+            const posts = await authManager.getPosts();
+            
+            if (posts.length === 0) {
+                container.innerHTML = `
+                    <div class="card no-posts">
+                        <h3>No posts yet</h3>
+                        <p>Be the first to share something with the community!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const postsHtml = posts.map(post => this.renderPost(post)).join('');
+            container.innerHTML = postsHtml;
+            
+            // Set up post interactions
+            this.setupPostInteractions();
+            
+        } catch (error) {
+            console.error('❌ Error loading posts:', error);
+            container.innerHTML = `
+                <div class="card error-loading">
+                    <h3>Error loading posts</h3>
+                    <p>Please try refreshing the page.</p>
+                </div>
+            `;
+        }
+    }
+
+    renderPost(post) {
+        const currentUser = authManager.getCurrentUser();
+        const isOwnPost = post.uid === currentUser?.uid;
+        const userLiked = post.likes?.includes(currentUser?.uid) || false;
+        
+        const displayName = post.author?.showRealName && (post.author?.firstName || post.author?.lastName) 
+            ? [post.author.firstName, post.author.lastName].filter(Boolean).join(' ')
+            : post.author?.displayName || 'Anonymous';
+
+        const timeAgo = this.formatTimeAgo(post.createdAt);
+
+        return `
+            <div class="card post-card" data-post-id="${post.id}">
+                <div class="post-header">
+                    <div class="post-author">
+                        <div class="author-avatar">
+                            ${post.author?.avatarUrl ? 
+                                `<img src="${post.author.avatarUrl}" alt="${displayName}">` :
+                                `<div class="avatar-placeholder"><span class="material-icons">person</span></div>`
+                            }
+                        </div>
+                        <div class="author-info">
+                            <h4>${displayName}</h4>
+                            <p class="post-time">${timeAgo}</p>
+                        </div>
+                    </div>
+                    <div class="post-menu">
+                        <button class="post-menu-btn" data-post-id="${post.id}">
+                            <span class="material-icons">more_vert</span>
+                        </button>
+                        <div class="post-menu-dropdown" id="menu-${post.id}" style="display: none;">
+                            ${isOwnPost ? '<button class="menu-item delete-post" data-post-id="' + post.id + '"><span class="material-icons">delete</span> Delete Post</button>' : ''}
+                            <button class="menu-item report-post" data-post-id="${post.id}">
+                                <span class="material-icons">flag</span> Report Post
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="post-content">
+                    <p>${this.formatPostContent(post.content)}</p>
+                    ${post.imageUrl ? `<div class="post-image"><img src="${post.imageUrl}" alt="Post image"></div>` : ''}
+                </div>
+                
+                <div class="post-actions">
+                    <button class="action-btn like-btn ${userLiked ? 'liked' : ''}" data-post-id="${post.id}">
+                        <span class="material-icons">${userLiked ? 'favorite' : 'favorite_border'}</span>
+                        <span class="action-count">${post.likesCount || 0}</span>
+                    </button>
+                    <button class="action-btn comment-btn" data-post-id="${post.id}">
+                        <span class="material-icons">comment</span>
+                        <span class="action-count">${post.commentsCount || 0}</span>
+                    </button>
+                </div>
+                
+                <div class="comments-section" id="comments-${post.id}" style="display: none;">
+                    <div class="add-comment">
+                        <textarea placeholder="Add a comment..." rows="2" maxlength="500" id="comment-input-${post.id}"></textarea>
+                        <button class="btn btn-primary btn-small submit-comment" data-post-id="${post.id}">Comment</button>
+                    </div>
+                    <div class="comments-list" id="comments-list-${post.id}">
+                        <!-- Comments will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    setupPostInteractions() {
+        // Like buttons
+        document.querySelectorAll('.like-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const postId = btn.getAttribute('data-post-id');
+                await this.handleLike(postId, btn);
+            });
+        });
+
+        // Comment buttons
+        document.querySelectorAll('.comment-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const postId = btn.getAttribute('data-post-id');
+                this.toggleComments(postId);
+            });
+        });
+
+        // Post menu buttons
+        document.querySelectorAll('.post-menu-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const postId = btn.getAttribute('data-post-id');
+                this.togglePostMenu(postId);
+            });
+        });
+
+        // Comment submission
+        document.querySelectorAll('.submit-comment').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const postId = btn.getAttribute('data-post-id');
+                await this.handleComment(postId);
+            });
+        });
+
+        // Delete post
+        document.querySelectorAll('.delete-post').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const postId = btn.getAttribute('data-post-id');
+                await this.handleDeletePost(postId);
+            });
+        });
+
+        // Report post
+        document.querySelectorAll('.report-post').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const postId = btn.getAttribute('data-post-id');
+                await this.handleReportPost(postId);
+            });
+        });
+
+        // Close menus when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.post-menu')) {
+                document.querySelectorAll('.post-menu-dropdown').forEach(menu => {
+                    menu.style.display = 'none';
+                });
+            }
+        });
+    }
+
+    async handleLike(postId, button) {
+        try {
+            const newLikeState = await authManager.toggleLike(postId);
+            const icon = button.querySelector('.material-icons');
+            const count = button.querySelector('.action-count');
+            
+            if (newLikeState) {
+                button.classList.add('liked');
+                icon.textContent = 'favorite';
+                count.textContent = parseInt(count.textContent) + 1;
+            } else {
+                button.classList.remove('liked');
+                icon.textContent = 'favorite_border';
+                count.textContent = parseInt(count.textContent) - 1;
+            }
+        } catch (error) {
+            console.error('❌ Error liking post:', error);
+            alert('Failed to like post. Please try again.');
+        }
+    }
+
+    async toggleComments(postId) {
+        const commentsSection = document.getElementById(`comments-${postId}`);
+        
+        if (commentsSection.style.display === 'none') {
+            commentsSection.style.display = 'block';
+            await this.loadComments(postId);
+        } else {
+            commentsSection.style.display = 'none';
+        }
+    }
+
+    async loadComments(postId) {
+        const commentsList = document.getElementById(`comments-list-${postId}`);
+        
+        try {
+            const comments = await authManager.getComments(postId);
+            
+            if (comments.length === 0) {
+                commentsList.innerHTML = '<p class="no-comments">No comments yet. Be the first to comment!</p>';
+                return;
+            }
+
+            const commentsHtml = comments.map(comment => {
+                const displayName = comment.author?.showRealName && (comment.author?.firstName || comment.author?.lastName) 
+                    ? [comment.author.firstName, comment.author.lastName].filter(Boolean).join(' ')
+                    : comment.author?.displayName || 'Anonymous';
+
+                return `
+                    <div class="comment">
+                        <div class="comment-author">
+                            <div class="comment-avatar">
+                                ${comment.author?.avatarUrl ? 
+                                    `<img src="${comment.author.avatarUrl}" alt="${displayName}">` :
+                                    `<div class="avatar-placeholder-small"><span class="material-icons">person</span></div>`
+                                }
+                            </div>
+                            <div class="comment-content">
+                                <h5>${displayName}</h5>
+                                <p>${this.formatPostContent(comment.content)}</p>
+                                <span class="comment-time">${this.formatTimeAgo(comment.createdAt)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            commentsList.innerHTML = commentsHtml;
+        } catch (error) {
+            console.error('❌ Error loading comments:', error);
+            commentsList.innerHTML = '<p class="error-comments">Failed to load comments.</p>';
+        }
+    }
+
+    async handleComment(postId) {
+        const input = document.getElementById(`comment-input-${postId}`);
+        const content = input.value.trim();
+        
+        if (!content) {
+            alert('Please enter a comment.');
+            return;
+        }
+
+        try {
+            await authManager.addComment(postId, content);
+            input.value = '';
+            await this.loadComments(postId);
+            
+            // Update comment count in UI
+            const commentBtn = document.querySelector(`[data-post-id="${postId}"].comment-btn`);
+            const countSpan = commentBtn.querySelector('.action-count');
+            countSpan.textContent = parseInt(countSpan.textContent) + 1;
+            
+        } catch (error) {
+            console.error('❌ Error adding comment:', error);
+            alert('Failed to add comment. Please try again.');
+        }
+    }
+
+    togglePostMenu(postId) {
+        const menu = document.getElementById(`menu-${postId}`);
+        const isVisible = menu.style.display !== 'none';
+        
+        // Hide all other menus
+        document.querySelectorAll('.post-menu-dropdown').forEach(m => m.style.display = 'none');
+        
+        // Toggle this menu
+        menu.style.display = isVisible ? 'none' : 'block';
+    }
+
+    async handleDeletePost(postId) {
+        if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            await authManager.deletePost(postId);
+            // Remove post from UI
+            const postCard = document.querySelector(`[data-post-id="${postId}"]`);
+            postCard.remove();
+            console.log('✅ Post deleted successfully');
+        } catch (error) {
+            console.error('❌ Error deleting post:', error);
+            alert('Failed to delete post. Please try again.');
+        }
+    }
+
+    async handleReportPost(postId) {
+        const reason = prompt('Please provide a reason for reporting this post:');
+        if (!reason) return;
+
+        try {
+            await authManager.reportPost(postId, reason);
+            alert('Thank you for your report. Our moderators will review this post.');
+            
+            // Hide menu
+            document.getElementById(`menu-${postId}`).style.display = 'none';
+        } catch (error) {
+            console.error('❌ Error reporting post:', error);
+            alert('Failed to report post. Please try again.');
+        }
+    }
+
+    formatPostContent(content) {
+        // Basic text formatting - escape HTML and preserve line breaks
+        return content
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\n/g, '<br>');
+    }
+
+    formatTimeAgo(timestamp) {
+        const now = new Date();
+        const time = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        const diff = now - time;
+        
+        const seconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        
+        if (days > 0) return `${days}d ago`;
+        if (hours > 0) return `${hours}h ago`;
+        if (minutes > 0) return `${minutes}m ago`;
+        return 'Just now';
     }
 
     loadSupportGroups() {

@@ -12,7 +12,17 @@ import {
     setDoc, 
     getDoc, 
     updateDoc, 
-    increment 
+    increment,
+    addDoc,
+    collection,
+    query,
+    where,
+    orderBy,
+    limit,
+    getDocs,
+    deleteDoc,
+    arrayUnion,
+    arrayRemove
 } from 'https://www.gstatic.com/firebasejs/10.3.0/firebase-firestore.js';
 import { 
     ref, 
@@ -121,6 +131,7 @@ class AuthManager {
                 displayName: user.displayName || firstName || '',
                 createdAt: new Date(),
                 isPrivate: true, // Default to private for mental health safety
+                isAdmin: false, // Default to non-admin
                 showRealName: false, // Default to hide real name for privacy
                 bio: '',
                 avatarUrl: null,
@@ -329,6 +340,247 @@ class AuthManager {
             return profileDoc.exists() ? profileDoc.data() : null;
         } catch (error) {
             console.error('❌ Error getting user profile:', error);
+            throw error;
+        }
+    }
+
+    // Create a new post
+    async createPost(content, imageFile = null) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            let imageUrl = null;
+            
+            // Upload image if provided
+            if (imageFile) {
+                const maxSize = 5 * 1024 * 1024; // 5MB
+                if (imageFile.size > maxSize) {
+                    throw new Error('Image must be less than 5MB');
+                }
+                if (!imageFile.type.startsWith('image/')) {
+                    throw new Error('Please select an image file');
+                }
+
+                const fileRef = ref(storage, `posts/${this.currentUser.uid}/${Date.now()}_${imageFile.name}`);
+                const snapshot = await uploadBytes(fileRef, imageFile);
+                imageUrl = await getDownloadURL(snapshot.ref);
+            }
+
+            // Create post document
+            const postData = {
+                uid: this.currentUser.uid,
+                content: content.trim(),
+                imageUrl: imageUrl,
+                createdAt: new Date(),
+                likes: [],
+                likesCount: 0,
+                commentsCount: 0,
+                isReported: false,
+                reports: []
+            };
+
+            const postRef = await addDoc(collection(db, COLLECTIONS.POSTS), postData);
+            
+            // Award points for creating a post
+            await this.awardPoints(this.currentUser.uid, 'post');
+
+            console.log('✅ Post created successfully');
+            return postRef.id;
+        } catch (error) {
+            console.error('❌ Error creating post:', error);
+            throw error;
+        }
+    }
+
+    // Get posts for feed
+    async getPosts(limit = 20) {
+        try {
+            const postsQuery = query(
+                collection(db, COLLECTIONS.POSTS),
+                orderBy('createdAt', 'desc'),
+                limit(limit)
+            );
+            
+            const snapshot = await getDocs(postsQuery);
+            const posts = [];
+            
+            for (const doc of snapshot.docs) {
+                const postData = { id: doc.id, ...doc.data() };
+                
+                // Get author profile
+                const authorProfile = await this.getUserProfile(postData.uid);
+                postData.author = authorProfile;
+                
+                posts.push(postData);
+            }
+            
+            return posts;
+        } catch (error) {
+            console.error('❌ Error getting posts:', error);
+            throw error;
+        }
+    }
+
+    // Like/unlike a post
+    async toggleLike(postId) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            const postRef = doc(db, COLLECTIONS.POSTS, postId);
+            const postDoc = await getDoc(postRef);
+            
+            if (!postDoc.exists()) throw new Error('Post not found');
+            
+            const postData = postDoc.data();
+            const likes = postData.likes || [];
+            const userLiked = likes.includes(this.currentUser.uid);
+            
+            if (userLiked) {
+                // Remove like
+                await updateDoc(postRef, {
+                    likes: arrayRemove(this.currentUser.uid),
+                    likesCount: increment(-1)
+                });
+            } else {
+                // Add like
+                await updateDoc(postRef, {
+                    likes: arrayUnion(this.currentUser.uid),
+                    likesCount: increment(1)
+                });
+                
+                // Award points for liking
+                await this.awardPoints(this.currentUser.uid, 'like');
+            }
+            
+            return !userLiked; // Return new like state
+        } catch (error) {
+            console.error('❌ Error toggling like:', error);
+            throw error;
+        }
+    }
+
+    // Add comment to post
+    async addComment(postId, content) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            const commentData = {
+                postId: postId,
+                uid: this.currentUser.uid,
+                content: content.trim(),
+                createdAt: new Date()
+            };
+
+            await addDoc(collection(db, COLLECTIONS.COMMENTS), commentData);
+            
+            // Update post comment count
+            const postRef = doc(db, COLLECTIONS.POSTS, postId);
+            await updateDoc(postRef, {
+                commentsCount: increment(1)
+            });
+            
+            // Award points for commenting
+            await this.awardPoints(this.currentUser.uid, 'comment');
+
+            console.log('✅ Comment added successfully');
+        } catch (error) {
+            console.error('❌ Error adding comment:', error);
+            throw error;
+        }
+    }
+
+    // Get comments for a post
+    async getComments(postId) {
+        try {
+            const commentsQuery = query(
+                collection(db, COLLECTIONS.COMMENTS),
+                where('postId', '==', postId),
+                orderBy('createdAt', 'asc')
+            );
+            
+            const snapshot = await getDocs(commentsQuery);
+            const comments = [];
+            
+            for (const doc of snapshot.docs) {
+                const commentData = { id: doc.id, ...doc.data() };
+                
+                // Get author profile
+                const authorProfile = await this.getUserProfile(commentData.uid);
+                commentData.author = authorProfile;
+                
+                comments.push(commentData);
+            }
+            
+            return comments;
+        } catch (error) {
+            console.error('❌ Error getting comments:', error);
+            throw error;
+        }
+    }
+
+    // Delete post (own posts or admin)
+    async deletePost(postId) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            const postRef = doc(db, COLLECTIONS.POSTS, postId);
+            const postDoc = await getDoc(postRef);
+            
+            if (!postDoc.exists()) throw new Error('Post not found');
+            
+            const postData = postDoc.data();
+            const userProfile = await this.getUserProfile();
+            
+            // Check permissions: own post or admin
+            if (postData.uid !== this.currentUser.uid && !userProfile.isAdmin) {
+                throw new Error('Not authorized to delete this post');
+            }
+            
+            // Delete the post
+            await deleteDoc(postRef);
+            
+            // Delete associated comments
+            const commentsQuery = query(
+                collection(db, COLLECTIONS.COMMENTS),
+                where('postId', '==', postId)
+            );
+            const commentsSnapshot = await getDocs(commentsQuery);
+            
+            const deletePromises = commentsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+            await Promise.all(deletePromises);
+            
+            console.log('✅ Post deleted successfully');
+        } catch (error) {
+            console.error('❌ Error deleting post:', error);
+            throw error;
+        }
+    }
+
+    // Report post
+    async reportPost(postId, reason) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            const reportData = {
+                postId: postId,
+                reportedBy: this.currentUser.uid,
+                reason: reason,
+                createdAt: new Date(),
+                status: 'pending'
+            };
+
+            await addDoc(collection(db, COLLECTIONS.REPORTS), reportData);
+            
+            // Mark post as reported
+            const postRef = doc(db, COLLECTIONS.POSTS, postId);
+            await updateDoc(postRef, {
+                isReported: true,
+                reports: arrayUnion(this.currentUser.uid)
+            });
+
+            console.log('✅ Post reported successfully');
+        } catch (error) {
+            console.error('❌ Error reporting post:', error);
             throw error;
         }
     }
