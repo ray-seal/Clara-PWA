@@ -349,10 +349,12 @@ class AuthManager {
         if (!this.currentUser) throw new Error('Not authenticated');
 
         try {
+            console.log('📝 Creating new post...');
             let imageUrl = null;
             
             // Upload image if provided
             if (imageFile) {
+                console.log('📷 Uploading image...');
                 const maxSize = 5 * 1024 * 1024; // 5MB
                 if (imageFile.size > maxSize) {
                     throw new Error('Image must be less than 5MB');
@@ -364,6 +366,7 @@ class AuthManager {
                 const fileRef = ref(storage, `posts/${this.currentUser.uid}/${Date.now()}_${imageFile.name}`);
                 const snapshot = await uploadBytes(fileRef, imageFile);
                 imageUrl = await getDownloadURL(snapshot.ref);
+                console.log('✅ Image uploaded successfully');
             }
 
             // Create post document
@@ -379,22 +382,41 @@ class AuthManager {
                 reports: []
             };
 
+            console.log('💾 Saving post to database...');
             const postRef = await addDoc(collection(db, COLLECTIONS.POSTS), postData);
             
             // Award points for creating a post
+            console.log('🎯 Awarding points...');
             await this.awardPoints(this.currentUser.uid, 'post');
 
-            console.log('✅ Post created successfully');
+            console.log('✅ Post created successfully with ID:', postRef.id);
             return postRef.id;
         } catch (error) {
             console.error('❌ Error creating post:', error);
-            throw error;
+            
+            // Provide more specific error messages
+            if (error.code === 'storage/unauthorized') {
+                throw new Error('Permission denied for image upload. Please check storage rules.');
+            } else if (error.code === 'permission-denied') {
+                throw new Error('Permission denied. Please check Firestore security rules.');
+            } else if (error.message.includes('Image must be')) {
+                throw error; // Re-throw validation errors as-is
+            } else {
+                throw new Error(`Failed to create post: ${error.message}`);
+            }
         }
     }
 
     // Get posts for feed
     async getPosts(limit = 20) {
         try {
+            console.log('📥 Fetching posts from Firebase...');
+            
+            // Check if user is authenticated
+            if (!this.currentUser) {
+                throw new Error('User not authenticated');
+            }
+            
             const postsQuery = query(
                 collection(db, COLLECTIONS.POSTS),
                 orderBy('createdAt', 'desc'),
@@ -402,22 +424,52 @@ class AuthManager {
             );
             
             const snapshot = await getDocs(postsQuery);
+            console.log(`📊 Found ${snapshot.docs.length} posts in database`);
+            
             const posts = [];
             
             for (const doc of snapshot.docs) {
                 const postData = { id: doc.id, ...doc.data() };
                 
-                // Get author profile
-                const authorProfile = await this.getUserProfile(postData.uid);
-                postData.author = authorProfile;
-                
-                posts.push(postData);
+                try {
+                    // Get author profile
+                    const authorProfile = await this.getUserProfile(postData.uid);
+                    postData.author = authorProfile || {
+                        displayName: 'Unknown User',
+                        firstName: 'Unknown',
+                        lastName: 'User',
+                        showRealName: false,
+                        avatarUrl: null
+                    };
+                    
+                    posts.push(postData);
+                } catch (profileError) {
+                    console.warn('⚠️ Error loading author profile for post:', doc.id, profileError);
+                    // Still include post with default author info
+                    postData.author = {
+                        displayName: 'Unknown User',
+                        firstName: 'Unknown',
+                        lastName: 'User',
+                        showRealName: false,
+                        avatarUrl: null
+                    };
+                    posts.push(postData);
+                }
             }
             
+            console.log(`✅ Successfully processed ${posts.length} posts`);
             return posts;
         } catch (error) {
             console.error('❌ Error getting posts:', error);
-            throw error;
+            
+            // Provide more specific error information
+            if (error.code === 'permission-denied') {
+                throw new Error('Permission denied. Please check Firestore security rules.');
+            } else if (error.code === 'unavailable') {
+                throw new Error('Firebase is currently unavailable. Please try again later.');
+            } else {
+                throw new Error(`Failed to load posts: ${error.message}`);
+            }
         }
     }
 

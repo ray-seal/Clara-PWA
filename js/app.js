@@ -180,10 +180,11 @@ class ClaraApp {
         if (authScreen) authScreen.style.display = 'none';
         if (mainApp) mainApp.style.display = 'flex';
 
-        // Load main app content
-        this.loadMainAppContent();
+        // Ensure we're on the feed tab and load it immediately
+        this.currentTab = 'feed';
+        this.switchTab('feed');
 
-        console.log('🏠 Main app shown');
+        console.log('🏠 Main app shown and feed loaded');
     }
 
     showSignInForm() {
@@ -227,6 +228,8 @@ class ClaraApp {
     }
 
     switchTab(tabName) {
+        console.log(`📱 Switching to ${tabName} tab`);
+        
         // Update navigation
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.classList.remove('active');
@@ -240,10 +243,11 @@ class ClaraApp {
         document.getElementById(`${tabName}-tab`)?.classList.add('active');
 
         this.currentTab = tabName;
-        console.log(`📱 Switched to ${tabName} tab`);
-
-        // Load tab-specific content
+        
+        // Always load tab content when switching
         this.loadTabContent(tabName);
+        
+        console.log(`✅ Switched to ${tabName} tab and loaded content`);
     }
 
     loadMainAppContent() {
@@ -388,10 +392,14 @@ class ClaraApp {
             const originalIcon = submitBtn.innerHTML;
             
             try {
+                console.log('🚀 Starting post submission...');
                 submitBtn.innerHTML = '<span class="material-icons spinning">hourglass_empty</span>';
                 submitBtn.disabled = true;
+                addImageBtn.disabled = true;
 
                 await authManager.createPost(content, imageFile);
+                
+                console.log('✅ Post submitted successfully, resetting form...');
                 
                 // Reset form
                 input.value = '';
@@ -402,15 +410,23 @@ class ClaraApp {
                 submitBtn.style.opacity = '0.5';
 
                 // Reload posts
-                this.loadPosts();
+                console.log('🔄 Reloading posts...');
+                await this.loadPosts();
                 
-                console.log('✅ Post created successfully');
+                console.log('✅ Post creation process complete');
                 
             } catch (error) {
                 console.error('❌ Error creating post:', error);
-                alert(error.message);
+                alert(`Failed to create post: ${error.message}`);
             } finally {
                 submitBtn.innerHTML = originalIcon;
+                addImageBtn.disabled = false;
+                
+                // Re-enable submit if there's still content
+                if (input.value.trim()) {
+                    submitBtn.disabled = false;
+                    submitBtn.style.opacity = '1';
+                }
             }
         });
 
@@ -431,6 +447,14 @@ class ClaraApp {
             return;
         }
 
+        // Show loading state
+        container.innerHTML = `
+            <div class="loading-posts">
+                <span class="material-icons spinning">refresh</span>
+                <p>Loading posts...</p>
+            </div>
+        `;
+
         try {
             const posts = await authManager.getPosts();
             console.log(`✅ Loaded ${posts.length} posts`);
@@ -438,8 +462,9 @@ class ClaraApp {
             if (posts.length === 0) {
                 container.innerHTML = `
                     <div class="card no-posts">
-                        <h3>No posts yet</h3>
-                        <p>Be the first to share something with the community!</p>
+                        <h3>Welcome to the Community!</h3>
+                        <p>No posts yet. Be the first to share something with the community!</p>
+                        <p><em>Use the input box above to create your first post.</em></p>
                     </div>
                 `;
                 return;
@@ -455,9 +480,13 @@ class ClaraApp {
             console.error('❌ Error loading posts:', error);
             container.innerHTML = `
                 <div class="card error-loading">
-                    <h3>Error loading posts</h3>
-                    <p>Please try refreshing the page.</p>
-                    <p><small>Error: ${error.message}</small></p>
+                    <h3>Unable to Load Posts</h3>
+                    <p>There was a problem loading the community posts.</p>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <button class="btn btn-primary" onclick="window.claraApp.loadPosts()">
+                        <span class="material-icons">refresh</span>
+                        Try Again
+                    </button>
                 </div>
             `;
         }
