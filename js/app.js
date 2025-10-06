@@ -413,6 +413,11 @@ class ClaraApp {
                 console.log('🔄 Reloading posts...');
                 await this.loadPosts();
                 
+                // Refresh profile stats if user is on profile tab
+                if (this.currentTab === 'profile') {
+                    this.refreshProfileStats();
+                }
+                
                 console.log('✅ Post creation process complete');
                 
             } catch (error) {
@@ -640,6 +645,11 @@ class ClaraApp {
                 icon.textContent = 'favorite_border';
                 count.textContent = parseInt(count.textContent) - 1;
             }
+            
+            // Refresh profile stats if user is on profile tab
+            if (this.currentTab === 'profile') {
+                this.refreshProfileStats();
+            }
         } catch (error) {
             console.error('❌ Error liking post:', error);
             alert('Failed to like post. Please try again.');
@@ -718,6 +728,11 @@ class ClaraApp {
             const countSpan = commentBtn.querySelector('.action-count');
             countSpan.textContent = parseInt(countSpan.textContent) + 1;
             
+            // Refresh profile stats if user is on profile tab
+            if (this.currentTab === 'profile') {
+                this.refreshProfileStats();
+            }
+            
         } catch (error) {
             console.error('❌ Error adding comment:', error);
             alert('Failed to add comment. Please try again.');
@@ -791,6 +806,76 @@ class ClaraApp {
         if (hours > 0) return `${hours}h ago`;
         if (minutes > 0) return `${minutes}m ago`;
         return 'Just now';
+    }
+
+    // Refresh profile stats in real-time
+    async refreshProfileStats() {
+        try {
+            const user = authManager.getCurrentUser();
+            if (!user) return;
+
+            console.log('🔄 Refreshing profile stats...');
+            
+            const profileData = await authManager.getUserProfile();
+            if (!profileData) return;
+
+            // Update stats in the UI if elements exist
+            const statsElements = {
+                posts: document.querySelector('.stat-item .stat-number:nth-of-type(1)'),
+                comments: document.querySelector('.stat-item .stat-number:nth-of-type(2)'), 
+                likesGiven: document.querySelector('.stat-item .stat-number:nth-of-type(3)'),
+                likesReceived: document.querySelector('.stat-item .stat-number:nth-of-type(4)')
+            };
+
+            // Find and update stats by their labels
+            document.querySelectorAll('.stat-item').forEach(item => {
+                const label = item.querySelector('.stat-label')?.textContent?.toLowerCase();
+                const numberElement = item.querySelector('.stat-number');
+                
+                if (numberElement && label) {
+                    if (label.includes('posts')) {
+                        numberElement.textContent = profileData.stats?.postsCount || 0;
+                    } else if (label.includes('comments')) {
+                        numberElement.textContent = profileData.stats?.commentsCount || 0;
+                    } else if (label.includes('likes given')) {
+                        numberElement.textContent = profileData.stats?.likesGivenCount || 0;
+                    } else if (label.includes('likes received')) {
+                        numberElement.textContent = profileData.stats?.likesReceivedCount || 0;
+                    }
+                }
+            });
+
+            // Update level and points
+            const levelNumber = document.querySelector('.level-number');
+            const pointsCount = document.querySelector('.points-count');
+            
+            if (levelNumber && pointsCount) {
+                const currentLevel = authManager.calculateLevel(profileData.points || 0);
+                levelNumber.textContent = `Level ${currentLevel}`;
+                pointsCount.textContent = `${profileData.points || 0} points`;
+
+                // Update progress bar
+                const pointsToNext = authManager.getPointsForNextLevel(profileData.points || 0);
+                const progressFill = document.querySelector('.progress-fill');
+                const nextLevelText = document.querySelector('.next-level-text');
+                
+                if (pointsToNext && progressFill && nextLevelText) {
+                    const progress = ((profileData.points || 0) % pointsToNext) / pointsToNext * 100;
+                    progressFill.style.width = `${progress}%`;
+                    nextLevelText.textContent = `${pointsToNext} points to Level ${currentLevel + 1}`;
+                } else if (!pointsToNext) {
+                    // Max level reached
+                    const maxLevelText = document.querySelector('.max-level-text');
+                    if (maxLevelText) {
+                        maxLevelText.textContent = '🎉 Maximum level reached!';
+                    }
+                }
+            }
+
+            console.log('✅ Profile stats refreshed');
+        } catch (error) {
+            console.error('❌ Error refreshing profile stats:', error);
+        }
     }
 
     loadSupportGroups() {

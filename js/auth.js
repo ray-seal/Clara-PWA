@@ -234,6 +234,8 @@ class AuthManager {
         if (points === 0) return;
 
         try {
+            console.log(`🎯 Awarding ${points} points for ${actionType} to user ${userId}`);
+            
             const profileRef = doc(db, COLLECTIONS.PROFILES, userId);
             const profileDoc = await getDoc(profileRef);
             
@@ -242,16 +244,37 @@ class AuthManager {
                 const newPoints = (currentData.points || 0) + points;
                 const newLevel = this.calculateLevel(newPoints);
                 
-                await updateDoc(profileRef, {
+                // Prepare the update data
+                const updateData = {
                     points: newPoints,
-                    level: newLevel,
-                    [`stats.${actionType}Count`]: increment(1)
-                });
+                    level: newLevel
+                };
+
+                // Update the appropriate stats counter
+                if (actionType === 'post') {
+                    updateData['stats.postsCount'] = increment(1);
+                } else if (actionType === 'comment') {
+                    updateData['stats.commentsCount'] = increment(1);
+                } else if (actionType === 'like') {
+                    updateData['stats.likesGivenCount'] = increment(1);
+                }
+
+                await updateDoc(profileRef, updateData);
 
                 console.log(`✅ Awarded ${points} points for ${actionType}. Total: ${newPoints}, Level: ${newLevel}`);
+                
+                // Return new stats for UI updates
+                return {
+                    points: newPoints,
+                    level: newLevel,
+                    actionType: actionType
+                };
+            } else {
+                console.warn(`⚠️ Profile not found for user ${userId}`);
             }
         } catch (error) {
             console.error('❌ Error awarding points:', error);
+            throw error;
         }
     }
 
@@ -477,6 +500,8 @@ class AuthManager {
         if (!this.currentUser) throw new Error('Not authenticated');
 
         try {
+            console.log(`👍 Toggling like for post ${postId}...`);
+            
             const postRef = doc(db, COLLECTIONS.POSTS, postId);
             const postDoc = await getDoc(postRef);
             
@@ -485,6 +510,7 @@ class AuthManager {
             const postData = postDoc.data();
             const likes = postData.likes || [];
             const userLiked = likes.includes(this.currentUser.uid);
+            const postAuthorId = postData.uid;
             
             if (userLiked) {
                 // Remove like
@@ -492,6 +518,14 @@ class AuthManager {
                     likes: arrayRemove(this.currentUser.uid),
                     likesCount: increment(-1)
                 });
+                
+                // Remove points from liker and post author
+                await this.removePoints(this.currentUser.uid, 'like');
+                if (postAuthorId !== this.currentUser.uid) {
+                    await this.removePoints(postAuthorId, 'likeReceived');
+                }
+                
+                console.log('👎 Like removed');
             } else {
                 // Add like
                 await updateDoc(postRef, {
@@ -499,14 +533,72 @@ class AuthManager {
                     likesCount: increment(1)
                 });
                 
-                // Award points for liking
+                // Award points to liker
                 await this.awardPoints(this.currentUser.uid, 'like');
+                
+                // Award points to post author (if different from liker)
+                if (postAuthorId !== this.currentUser.uid) {
+                    await this.awardPointsForReceivingLike(postAuthorId);
+                }
+                
+                console.log('👍 Like added');
             }
             
             return !userLiked; // Return new like state
         } catch (error) {
             console.error('❌ Error toggling like:', error);
             throw error;
+        }
+    }
+
+    // Award points for receiving a like
+    async awardPointsForReceivingLike(userId) {
+        try {
+            console.log(`🎯 Awarding like-received points to user ${userId}`);
+            
+            const profileRef = doc(db, COLLECTIONS.PROFILES, userId);
+            await updateDoc(profileRef, {
+                'stats.likesReceivedCount': increment(1)
+            });
+            
+            console.log('✅ Like-received points awarded');
+        } catch (error) {
+            console.error('❌ Error awarding like-received points:', error);
+        }
+    }
+
+    // Remove points (for unlike actions)
+    async removePoints(userId, actionType) {
+        try {
+            console.log(`📉 Removing points for ${actionType} from user ${userId}`);
+            
+            const profileRef = doc(db, COLLECTIONS.PROFILES, userId);
+            const profileDoc = await getDoc(profileRef);
+            
+            if (profileDoc.exists()) {
+                const currentData = profileDoc.data();
+                const pointValues = { 'like': 1, 'likeReceived': 0 };
+                const pointsToRemove = pointValues[actionType] || 0;
+                
+                const newPoints = Math.max(0, (currentData.points || 0) - pointsToRemove);
+                const newLevel = this.calculateLevel(newPoints);
+                
+                const updateData = {
+                    points: newPoints,
+                    level: newLevel
+                };
+
+                if (actionType === 'like') {
+                    updateData['stats.likesGivenCount'] = increment(-1);
+                } else if (actionType === 'likeReceived') {
+                    updateData['stats.likesReceivedCount'] = increment(-1);
+                }
+
+                await updateDoc(profileRef, updateData);
+                console.log(`✅ Removed ${pointsToRemove} points for ${actionType}`);
+            }
+        } catch (error) {
+            console.error('❌ Error removing points:', error);
         }
     }
 
@@ -543,6 +635,8 @@ class AuthManager {
     // Get comments for a post
     async getComments(postId) {
         try {
+            console.log(`📥 Loading comments for post ${postId}...`);
+            
             const commentsQuery = query(
                 collection(db, COLLECTIONS.COMMENTS),
                 where('postId', '==', postId),
@@ -550,22 +644,44 @@ class AuthManager {
             );
             
             const snapshot = await getDocs(commentsQuery);
+            console.log(`📊 Found ${snapshot.docs.length} comments`);
+            
             const comments = [];
             
             for (const doc of snapshot.docs) {
                 const commentData = { id: doc.id, ...doc.data() };
                 
-                // Get author profile
-                const authorProfile = await this.getUserProfile(commentData.uid);
-                commentData.author = authorProfile;
-                
-                comments.push(commentData);
+                try {
+                    // Get author profile
+                    const authorProfile = await this.getUserProfile(commentData.uid);
+                    commentData.author = authorProfile || {
+                        displayName: 'Unknown User',
+                        firstName: 'Unknown',
+                        lastName: 'User',
+                        showRealName: false,
+                        avatarUrl: null
+                    };
+                    
+                    comments.push(commentData);
+                } catch (profileError) {
+                    console.warn('⚠️ Error loading comment author profile:', doc.id, profileError);
+                    // Still include comment with default author info
+                    commentData.author = {
+                        displayName: 'Unknown User',
+                        firstName: 'Unknown',
+                        lastName: 'User',
+                        showRealName: false,
+                        avatarUrl: null
+                    };
+                    comments.push(commentData);
+                }
             }
             
+            console.log(`✅ Successfully loaded ${comments.length} comments`);
             return comments;
         } catch (error) {
             console.error('❌ Error getting comments:', error);
-            throw error;
+            throw new Error(`Failed to load comments: ${error.message}`);
         }
     }
 
