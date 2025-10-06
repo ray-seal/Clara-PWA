@@ -359,10 +359,22 @@ class AuthManager {
         if (!uid) throw new Error('No user ID provided');
 
         try {
+            console.log(`👤 Getting profile for user: ${uid}`);
             const profileDoc = await getDoc(doc(db, COLLECTIONS.PROFILES, uid));
-            return profileDoc.exists() ? profileDoc.data() : null;
+            console.log(`📋 Profile exists: ${profileDoc.exists()}`);
+            
+            if (profileDoc.exists()) {
+                const profileData = profileDoc.data();
+                console.log(`✅ Profile loaded for ${profileData.displayName || 'Unknown'}`);
+                return profileData;
+            } else {
+                console.log(`⚠️ No profile found for user: ${uid}`);
+                return null;
+            }
         } catch (error) {
             console.error('❌ Error getting user profile:', error);
+            console.error('❌ Error code:', error.code);
+            console.error('❌ Error message:', error.message);
             throw error;
         }
     }
