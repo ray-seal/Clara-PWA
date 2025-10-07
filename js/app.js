@@ -1663,7 +1663,7 @@ class ClaraApp {
             return;
         }
         
-        container.innerHTML = meditationTypes.map((type) => `
+        const htmlContent = meditationTypes.map((type) => `
             <div class="meditation-type-card ${type.comingSoon ? 'coming-soon' : ''}">
                 <div class="meditation-type-icon">${type.icon}</div>
                 <div class="meditation-type-content">
@@ -1685,6 +1685,11 @@ class ClaraApp {
                 </div>
             </div>
         `).join('');
+
+        console.log('Generated HTML:', htmlContent);
+        container.innerHTML = htmlContent;
+        console.log('Container after setting innerHTML:', container);
+        console.log('Container children count:', container.children.length);
     }
 
     hideMeditationMenu() {
