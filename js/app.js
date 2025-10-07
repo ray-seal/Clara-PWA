@@ -1622,11 +1622,27 @@ class ClaraApp {
         console.log('Main content element:', mainContent);
         
         if (meditationMenu && mainContent) {
-            // Populate meditation types
+            // Populate meditation types first
             this.loadMeditationTypes();
             
-            meditationMenu.style.display = 'flex';
+            // Hide main content
             mainContent.style.display = 'none';
+            
+            // Show meditation menu with specific block display to override any CSS
+            meditationMenu.style.display = 'block';
+            meditationMenu.style.visibility = 'visible';
+            
+            console.log('✅ Meditation menu should now be visible');
+            console.log('Menu display after setting:', meditationMenu.style.display);
+            console.log('Menu visibility after setting:', meditationMenu.style.visibility);
+            
+            // Double-check after a brief delay to see if something is overriding our styles
+            setTimeout(() => {
+                console.log('🔍 Checking meditation menu after 100ms...');
+                console.log('Menu display after delay:', meditationMenu.style.display);
+                console.log('Menu computed styles:', window.getComputedStyle(meditationMenu).display);
+                console.log('Menu visibility after delay:', meditationMenu.style.visibility);
+            }, 100);
         } else {
             console.error('❌ Missing meditation menu elements');
         }
