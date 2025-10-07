@@ -1840,9 +1840,9 @@ class ClaraApp {
     startBreathingExercise() {
         const circle = document.getElementById('breathing-circle');
         const instruction = document.getElementById('breathing-instruction');
-        const sessionTimer = document.getElementById('breathing-time-left');
+        const circleTimer = document.getElementById('breathing-timer');
         
-        if (!circle || !instruction || !sessionTimer) {
+        if (!circle || !instruction || !circleTimer) {
             console.error('❌ Missing breathing exercise elements');
             return;
         }
@@ -1859,11 +1859,11 @@ class ClaraApp {
         let phaseTime = 0;
         const phaseDuration = 4; // 4 seconds per phase
 
-        // Update timer display
+        // Update timer display in the breathing circle
         const updateTimer = () => {
             const minutes = Math.floor(secondsLeft / 60);
             const seconds = secondsLeft % 60;
-            sessionTimer.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            circleTimer.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
         };
 
         // Update breathing instruction and circle animation

@@ -2173,6 +2173,14 @@ p {
     font-family: 'Inter', monospace;
 }
 
+.breathing-timer {
+    font-size: 2.5rem;
+    font-weight: 700;
+    font-family: 'Inter', monospace;
+    color: var(--primary);
+    letter-spacing: 0.1em;
+}
+
 .breathing-controls {
     width: 100%;
     max-width: 400px;
@@ -2257,6 +2265,10 @@ p {
     
     .breathing-count {
         font-size: 2rem;
+    }
+    
+    .breathing-timer {
+        font-size: 1.8rem;
     }
     
     .breathing-buttons {
