@@ -1709,6 +1709,9 @@ class ClaraApp {
             meditationMenu.style.display = 'none';
             wellnessToolsView.style.display = 'block';
         }
+        
+        // Ensure we're on the wellness tab
+        this.switchTab('wellness');
     }
 
     async startMeditationSession(type) {
@@ -2089,7 +2092,7 @@ class ClaraApp {
     }
 
     returnToMainContent() {
-        // Hide all meditation views and return to main content
+        // Hide all meditation views and return to wellness tools
         const meditationViews = [
             'meditation-selection-view',
             'mood-assessment-view', 
@@ -2101,11 +2104,14 @@ class ClaraApp {
             if (view) view.style.display = 'none';
         });
 
-        // Show main content
-        const mainContent = document.querySelector('.main-content');
-        if (mainContent) {
-            mainContent.style.display = 'block';
+        // Show wellness tools view specifically
+        const wellnessToolsView = document.getElementById('wellness-tools-view');
+        if (wellnessToolsView) {
+            wellnessToolsView.style.display = 'block';
         }
+
+        // Ensure we're on the wellness tab
+        this.switchTab('wellness');
 
         // Clear any meditation state
         this.currentMeditationType = null;
