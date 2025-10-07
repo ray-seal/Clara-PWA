@@ -79,6 +79,19 @@ class ClaraApp {
             this.handleLogout();
         });
 
+        // Meditation navigation buttons
+        document.getElementById('back-to-wellness')?.addEventListener('click', () => {
+            this.hideMeditationMenu();
+        });
+
+        document.getElementById('back-to-meditation-types')?.addEventListener('click', () => {
+            this.showMeditationMenu();
+        });
+
+        document.getElementById('exit-breathing')?.addEventListener('click', () => {
+            this.returnToMainContent();
+        });
+
         console.log('✅ Event listeners set up');
     }
 
@@ -1599,9 +1612,14 @@ class ClaraApp {
 
     // Meditation System Methods
     showMeditationMenu() {
+        console.log('🧘‍♀️ Opening meditation menu...');
+        
         // Show meditation menu and hide other views
         const meditationMenu = document.getElementById('meditation-selection-view');
         const mainContent = document.querySelector('.main-content');
+        
+        console.log('Meditation menu element:', meditationMenu);
+        console.log('Main content element:', mainContent);
         
         if (meditationMenu && mainContent) {
             // Populate meditation types
@@ -1609,14 +1627,41 @@ class ClaraApp {
             
             meditationMenu.style.display = 'flex';
             mainContent.style.display = 'none';
+        } else {
+            console.error('❌ Missing meditation menu elements');
         }
     }
 
     loadMeditationTypes() {
+        console.log('📋 Loading meditation types...');
+        
         const container = document.getElementById('meditation-types-container');
-        if (!container) return;
+        if (!container) {
+            console.error('❌ meditation-types-container not found');
+            return;
+        }
 
-        const meditationTypes = config.APP_CONFIG.MEDITATION.TYPES;
+        console.log('Config object:', config);
+        console.log('APP_CONFIG import:', APP_CONFIG);
+        console.log('config.APP_CONFIG:', config.APP_CONFIG);
+        
+        // Try both possible paths
+        let meditationTypes = config.APP_CONFIG?.MEDITATION?.TYPES || APP_CONFIG?.MEDITATION?.TYPES;
+        console.log('Meditation types:', meditationTypes);
+        
+        if (!meditationTypes) {
+            console.error('❌ Meditation types not found in config');
+            container.innerHTML = `
+                <div class="error-message">
+                    <h3>⚠️ Configuration Error</h3>
+                    <p>Meditation types could not be loaded. Please check the configuration.</p>
+                    <button onclick="claraApp.hideMeditationMenu()" class="btn btn-primary">
+                        Back to Wellness Tools
+                    </button>
+                </div>
+            `;
+            return;
+        }
         
         container.innerHTML = meditationTypes.map((type) => `
             <div class="meditation-type-card ${type.comingSoon ? 'coming-soon' : ''}">
