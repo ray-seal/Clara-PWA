@@ -1616,21 +1616,27 @@ class ClaraApp {
         const container = document.getElementById('meditation-types-container');
         if (!container) return;
 
-        const { MEDITATION_TYPES } = config;
+        const meditationTypes = config.APP_CONFIG.MEDITATION.TYPES;
         
-        container.innerHTML = Object.entries(MEDITATION_TYPES).map(([key, type]) => `
-            <div class="meditation-type-card">
-                <div class="meditation-type-icon">${type.emoji}</div>
+        container.innerHTML = meditationTypes.map((type) => `
+            <div class="meditation-type-card ${type.comingSoon ? 'coming-soon' : ''}">
+                <div class="meditation-type-icon">${type.icon}</div>
                 <div class="meditation-type-content">
                     <h3>${type.name}</h3>
                     <p>${type.description}</p>
-                    <div class="meditation-type-meta">
-                        <span class="duration">⏱️ ${Math.floor(type.duration / 60)} minutes</span>
-                        <span class="difficulty">${type.difficulty}</span>
-                    </div>
-                    <button class="btn btn-primary meditation-start-btn" onclick="claraApp.startMeditationSession('${key}')">
-                        Start Session
-                    </button>
+                    ${type.duration ? `
+                        <div class="meditation-type-meta">
+                            <span class="duration">⏱️ ${Math.floor(type.duration / 60)} minutes</span>
+                        </div>
+                    ` : ''}
+                    ${type.comingSoon ? 
+                        `<button class="btn btn-secondary meditation-start-btn" disabled>
+                            Coming Soon
+                        </button>` :
+                        `<button class="btn btn-primary meditation-start-btn" onclick="claraApp.startMeditationSession('${type.id}')">
+                            Start Session
+                        </button>`
+                    }
                 </div>
             </div>
         `).join('');
@@ -1682,28 +1688,28 @@ class ClaraApp {
             title.nextElementSibling.textContent = 'How are you feeling after your meditation session?';
         }
 
-        const { MOOD_ASSESSMENTS } = config;
+        const moodQuestions = config.APP_CONFIG.MEDITATION.MOOD_QUESTIONS;
         
         container.innerHTML = `
             <form id="mood-assessment-form" class="mood-assessment-form">
-                ${MOOD_ASSESSMENTS.questions.map((question, index) => `
+                ${moodQuestions.map((question, index) => `
                     <div class="mood-question">
                         <label for="${type}-${question.id}" class="mood-question-label">
                             ${question.question}
                         </label>
                         <div class="mood-slider-container">
-                            <span class="mood-scale-label">1</span>
+                            <span class="mood-scale-label">${question.scale.labels[0]}</span>
                             <input type="range" 
                                    id="${type}-${question.id}" 
                                    class="mood-slider" 
-                                   min="1" 
-                                   max="10" 
+                                   min="${question.scale.min}" 
+                                   max="${question.scale.max}" 
                                    value="5"
                                    data-question="${question.id}">
-                            <span class="mood-scale-label">10</span>
+                            <span class="mood-scale-label">${question.scale.labels[1]}</span>
                         </div>
                         <div class="mood-value-display">
-                            <span id="${type}-${question.id}-value">5</span>/10
+                            <span id="${type}-${question.id}-value">5</span>/${question.scale.max}
                         </div>
                     </div>
                 `).join('')}
@@ -1730,11 +1736,11 @@ class ClaraApp {
             // Collect mood assessment data
             const moodData = {};
             const questions = [
-                'anxietyLevel',
-                'stressLevel', 
-                'energyLevel',
-                'focusLevel',
-                'overallMood'
+                'stress_level',
+                'anxiety_level', 
+                'mood_overall',
+                'energy_level',
+                'focus_clarity'
             ];
 
             for (const question of questions) {
@@ -1783,9 +1789,9 @@ class ClaraApp {
         console.log('🫁 Starting 4-4-4 breathing exercise...');
 
         // Get meditation type config for duration
-        const { MEDITATION_TYPES } = config;
-        const meditationType = MEDITATION_TYPES[this.currentMeditationType];
-        const totalDuration = meditationType?.duration || 300; // Default 5 minutes
+        const meditationTypes = config.APP_CONFIG.MEDITATION.TYPES;
+        const meditationType = meditationTypes.find(type => type.id === this.currentMeditationType);
+        const totalDuration = meditationType?.duration || 120; // Default 2 minutes
         
         let cyclePhase = 0; // 0: inhale, 1: hold, 2: exhale  
         let secondsLeft = totalDuration;
@@ -1863,11 +1869,11 @@ class ClaraApp {
             // Collect post-meditation mood data
             const postMoodData = {};
             const questions = [
-                'anxietyLevel',
-                'stressLevel',
-                'energyLevel', 
-                'focusLevel',
-                'overallMood'
+                'stress_level',
+                'anxiety_level',
+                'mood_overall', 
+                'energy_level',
+                'focus_clarity'
             ];
 
             for (const question of questions) {
@@ -1896,7 +1902,7 @@ class ClaraApp {
             // Save complete meditation session
             await authManager.saveMeditationSession({
                 type: this.currentMeditationType,
-                startTime: new Date(Date.now() - (this.currentMeditationType === 'breathing' ? 300000 : 600000)), // Estimate start time
+                startTime: new Date(Date.now() - (this.currentMeditationType === 'breathing' ? 120000 : 600000)), // Use actual duration
                 endTime: new Date(),
                 preMoodData: this.preMoodData,
                 postMoodData: postMoodData,
