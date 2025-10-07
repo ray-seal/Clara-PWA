@@ -269,6 +269,26 @@ p {
     margin: 0;
 }
 
+/* Clickable app title */
+.app-title-clickable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    margin: calc(-1 * var(--spacing-xs)) calc(-1 * var(--spacing-sm));
+}
+
+.app-title-clickable:hover {
+    background-color: var(--primary-color);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.app-title-clickable:active {
+    transform: translateY(0);
+}
+
 .header-actions {
     display: flex;
     gap: var(--spacing-sm);

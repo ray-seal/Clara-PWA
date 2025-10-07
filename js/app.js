@@ -79,6 +79,11 @@ class ClaraApp {
             this.handleLogout();
         });
 
+        // App title click - navigate to feed
+        document.getElementById('app-title')?.addEventListener('click', () => {
+            this.switchTab('feed');
+        });
+
         // Meditation navigation buttons
         document.getElementById('back-to-wellness')?.addEventListener('click', () => {
             this.hideMeditationMenu();
