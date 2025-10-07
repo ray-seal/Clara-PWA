@@ -1631,6 +1631,13 @@ class ClaraApp {
             // Show meditation menu with specific block display to override any CSS
             meditationMenu.style.display = 'block';
             meditationMenu.style.visibility = 'visible';
+            meditationMenu.style.position = 'relative';
+            meditationMenu.style.width = '100%';
+            meditationMenu.style.height = 'auto';
+            meditationMenu.style.minHeight = '400px';
+            meditationMenu.style.zIndex = '1000';
+            meditationMenu.style.backgroundColor = 'white';
+            meditationMenu.style.border = '2px solid red'; // Temporary border to see if it's there
             
             console.log('✅ Meditation menu should now be visible');
             console.log('Menu display after setting:', meditationMenu.style.display);
@@ -1642,6 +1649,28 @@ class ClaraApp {
                 console.log('Menu display after delay:', meditationMenu.style.display);
                 console.log('Menu computed styles:', window.getComputedStyle(meditationMenu).display);
                 console.log('Menu visibility after delay:', meditationMenu.style.visibility);
+                
+                // Check dimensions and positioning
+                const rect = meditationMenu.getBoundingClientRect();
+                const computedStyle = window.getComputedStyle(meditationMenu);
+                
+                console.log('📐 Element dimensions and position:');
+                console.log('Width:', rect.width, 'Height:', rect.height);
+                console.log('Top:', rect.top, 'Left:', rect.left);
+                console.log('CSS Height:', computedStyle.height);
+                console.log('CSS Width:', computedStyle.width);
+                console.log('CSS Position:', computedStyle.position);
+                console.log('CSS Z-index:', computedStyle.zIndex);
+                console.log('CSS Overflow:', computedStyle.overflow);
+                
+                // Check container positioning
+                const container = document.getElementById('meditation-types-container');
+                if (container) {
+                    const containerRect = container.getBoundingClientRect();
+                    console.log('📦 Container dimensions:');
+                    console.log('Container width:', containerRect.width, 'height:', containerRect.height);
+                    console.log('Container top:', containerRect.top, 'left:', containerRect.left);
+                }
             }, 100);
         } else {
             console.error('❌ Missing meditation menu elements');
