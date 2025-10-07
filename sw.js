@@ -1,5 +1,8 @@
-// Clara PWA - Service Worker
-const CACHE_NAME = 'clara-v2.0.0';
+// Clara PWA - Service Worker (auto-updating)
+const CACHE_VERSION = 'v3'; // bump this if you ever need a full reset
+const CACHE_NAME = `clara-${CACHE_VERSION}-${Date.now()}`;
+
+// Files to cache at install
 const urlsToCache = [
   '/',
   '/index.html',
@@ -14,128 +17,70 @@ const urlsToCache = [
   'https://fonts.googleapis.com/icon?family=Material+Icons'
 ];
 
-// Install event - cache resources
+// INSTALL — cache fresh assets
 self.addEventListener('install', (event) => {
-  console.log('🔧 Service worker installing...');
-  
+  console.log('🔧 Installing new service worker...');
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('📦 Caching app resources...');
-        return cache.addAll(urlsToCache);
-      })
+      .then((cache) => cache.addAll(urlsToCache))
       .then(() => {
-        console.log('✅ Service worker installed successfully');
+        console.log('✅ Cached resources successfully');
         return self.skipWaiting();
-      })
-      .catch((error) => {
-        console.error('❌ Service worker installation failed:', error);
       })
   );
 });
 
-// Activate event - clean up old caches
+// ACTIVATE — remove old caches & take control
 self.addEventListener('activate', (event) => {
-  console.log('🚀 Service worker activating...');
-  
+  console.log('🚀 Activating new service worker...');
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
+    caches.keys().then((cacheNames) =>
+      Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('🗑️ Deleting old cache:', cacheName);
+          if (cacheName.startsWith('clara-') && cacheName !== CACHE_NAME) {
+            console.log('🗑️ Removing old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
-      );
-    }).then(() => {
-      console.log('✅ Service worker activated successfully');
+      )
+    ).then(() => {
+      console.log('✅ Now controlling clients immediately');
       return self.clients.claim();
     })
   );
 });
 
-// Fetch event - serve from cache, fallback to network
+// FETCH — prefer network, fallback to cache
 self.addEventListener('fetch', (event) => {
-  // Skip Firebase and external API calls
-  if (event.request.url.includes('firebasejs') || 
-      event.request.url.includes('firebase') ||
-      event.request.url.includes('googleapis') ||
-      event.request.method !== 'GET') {
+  const { request } = event;
+
+  if (request.method !== 'GET') return;
+
+  // Skip Firebase and other dynamic requests
+  if (
+    request.url.includes('firebase') ||
+    request.url.includes('googleapis')
+  ) {
     return;
   }
 
   event.respondWith(
-    caches.match(event.request)
+    fetch(request)
       .then((response) => {
-        // Return cached version if available
-        if (response) {
+        if (!response || response.status !== 200 || response.type !== 'basic') {
           return response;
         }
 
-        // Otherwise fetch from network
-        return fetch(event.request).then((response) => {
-          // Don't cache if not a valid response
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
-
-          // Clone the response
-          const responseToCache = response.clone();
-
-          // Cache the fetched response
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-
-          return response;
-        });
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
+        return response;
       })
-      .catch(() => {
-        // Return offline fallback for navigation requests
-        if (event.request.destination === 'document') {
-          return caches.match('/index.html');
-        }
-      })
+      .catch(() => caches.match(request).then((res) => res || caches.match('/index.html')))
   );
 });
 
-// Background sync for offline actions
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'background-sync') {
-    console.log('🔄 Background sync triggered');
-    // Handle offline actions when back online
-  }
-});
-
-// Push notifications (for future use)
-self.addEventListener('push', (event) => {
-  if (event.data) {
-    const data = event.data.json();
-    console.log('📬 Push notification received:', data);
-
-    const options = {
-      body: data.body,
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/icon-72x72.png',
-      tag: 'clara-notification',
-      data: data.data || {}
-    };
-
-    event.waitUntil(
-      self.registration.showNotification(data.title || 'Clara', options)
-    );
-  }
-});
-
-// Notification click handler
-self.addEventListener('notificationclick', (event) => {
-  console.log('🔔 Notification clicked');
-  
-  event.notification.close();
-
-  event.waitUntil(
-    clients.openWindow('/')
-  );
+// Force page reload when new service worker takes control
+self.addEventListener('controllerchange', () => {
+  console.log('♻️ New service worker controlling page — reloading...');
+  window.location.reload();
 });
