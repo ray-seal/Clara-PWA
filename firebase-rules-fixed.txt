@@ -1,0 +1,109 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User Profiles - Users can read all profiles but only edit their own
+    match /profiles/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Social Posts - Authenticated users can read all, write their own, but can update likes/comments counts
+    match /posts/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.uid;
+      // Allow updates for likes and comments by any authenticated user
+      allow update: if request.auth != null && (
+        // Post owner can update everything
+        request.auth.uid == resource.data.uid ||
+        // Anyone can update likes and likesCount only
+        (request.resource.data.keys().hasOnly(['likes', 'likesCount']) &&
+         request.resource.data.uid == resource.data.uid &&
+         request.resource.data.content == resource.data.content &&
+         request.resource.data.createdAt == resource.data.createdAt) ||
+        // Anyone can update commentsCount only
+        (request.resource.data.keys().hasOnly(['commentsCount']) &&
+         request.resource.data.uid == resource.data.uid &&
+         request.resource.data.content == resource.data.content &&
+         request.resource.data.createdAt == resource.data.createdAt)
+      );
+    }
+    
+    // Comments - Authenticated users can read all, write their own
+    match /comments/{commentId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.uid;
+    }
+    
+    // Support Groups - Read-only public data
+    match /supportGroups/{groupId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Managed by admin only
+    }
+    
+    // Group Messages - Read all in group, write your own
+    match /groupMessages/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.uid;
+    }
+    
+    // Chat Messages - Read all in chat, write your own, allow heart reactions
+    match /chatMessages/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.uid;
+      // Allow updates for heart reactions by any authenticated user
+      allow update: if request.auth != null && (
+        // Message owner can update everything
+        request.auth.uid == resource.data.uid ||
+        // Anyone can update heartReactions only
+        (request.resource.data.keys().hasOnly(['heartReactions']) &&
+         request.resource.data.uid == resource.data.uid &&
+         request.resource.data.content == resource.data.content &&
+         request.resource.data.createdAt == resource.data.createdAt)
+      );
+    }
+    
+    // Chat Reactions - Read all, write your own
+    match /chatReactions/{reactionId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.uid;
+    }
+    
+    // User Presence - Read all, write your own
+    match /userPresence/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 🧘‍♀️ MEDITATION FEATURES
+    // Meditation Sessions - Private to each user
+    match /meditationSessions/{sessionId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.uid;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+    }
+    
+    // Mood Assessments - Private to each user
+    match /moodAssessments/{assessmentId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.uid;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+    }
+    
+    // Notifications - Read your own notifications
+    match /notifications/{notificationId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.recipientId;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && request.auth.uid == resource.data.recipientId;
+    }
+    
+    // Reports - Create only, admins manage
+    match /reports/{reportId} {
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.reporterId;
+      allow read, update, delete: if false; // Admin only
+    }
+  }
+}
