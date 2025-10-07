@@ -1828,8 +1828,8 @@ class ClaraApp {
             document.getElementById('mood-assessment-view').style.display = 'none';
             document.getElementById('breathing-exercise-view').style.display = 'flex';
 
-            // Start the breathing exercise
-            this.startBreathingExercise();
+            // Setup breathing exercise UI but don't auto-start
+            this.setupBreathingExercise();
 
         } catch (error) {
             console.error('❌ Error submitting pre-mood assessment:', error);
@@ -1837,10 +1837,68 @@ class ClaraApp {
         }
     }
 
+    setupBreathingExercise() {
+        const circle = document.getElementById('breathing-circle');
+        const instruction = document.getElementById('breathing-instruction');
+        const circleTimer = document.getElementById('breathing-timer');
+        const startBtn = document.getElementById('start-breathing');
+        const pauseBtn = document.getElementById('pause-breathing');
+        const stopBtn = document.getElementById('stop-breathing');
+        
+        if (!circle || !instruction || !circleTimer) {
+            console.error('❌ Missing breathing exercise elements');
+            return;
+        }
+
+        console.log('🎛️ Setting up breathing exercise controls...');
+
+        // Reset UI to initial state
+        instruction.textContent = 'Ready to begin your breathing exercise';
+        
+        // Get meditation type config for duration
+        const meditationTypes = config.APP_CONFIG.MEDITATION.TYPES;
+        const meditationType = meditationTypes.find(type => type.id === this.currentMeditationType);
+        const totalDuration = meditationType?.duration || 120; // Default 2 minutes
+        
+        // Display initial time
+        const minutes = Math.floor(totalDuration / 60);
+        const seconds = totalDuration % 60;
+        circleTimer.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Reset circle to initial state
+        circle.className = 'breathing-circle';
+        
+        // Show start button, hide others
+        if (startBtn) {
+            startBtn.style.display = 'block';
+            startBtn.onclick = () => this.startBreathingExercise();
+        }
+        if (pauseBtn) {
+            pauseBtn.style.display = 'none';
+            pauseBtn.onclick = () => this.pauseBreathingExercise();
+        }
+        if (stopBtn) {
+            stopBtn.style.display = 'none';
+            stopBtn.onclick = () => this.stopBreathingExercise();
+        }
+        
+        // Reset any existing interval
+        if (this.breathingInterval) {
+            clearInterval(this.breathingInterval);
+            this.breathingInterval = null;
+        }
+        
+        this.breathingPaused = false;
+        console.log('✅ Breathing exercise setup complete - waiting for user to start');
+    }
+
     startBreathingExercise() {
         const circle = document.getElementById('breathing-circle');
         const instruction = document.getElementById('breathing-instruction');
         const circleTimer = document.getElementById('breathing-timer');
+        const startBtn = document.getElementById('start-breathing');
+        const pauseBtn = document.getElementById('pause-breathing');
+        const stopBtn = document.getElementById('stop-breathing');
         
         if (!circle || !instruction || !circleTimer) {
             console.error('❌ Missing breathing exercise elements');
@@ -1848,6 +1906,11 @@ class ClaraApp {
         }
 
         console.log('🫁 Starting 4-4-4 breathing exercise...');
+
+        // Update button states
+        if (startBtn) startBtn.style.display = 'none';
+        if (pauseBtn) pauseBtn.style.display = 'block';
+        if (stopBtn) stopBtn.style.display = 'block';
 
         // Get meditation type config for duration
         const meditationTypes = config.APP_CONFIG.MEDITATION.TYPES;
@@ -1858,6 +1921,15 @@ class ClaraApp {
         let secondsLeft = totalDuration;
         let phaseTime = 0;
         const phaseDuration = 4; // 4 seconds per phase
+
+        // Store current state for pause/resume functionality
+        this.breathingState = {
+            cyclePhase,
+            secondsLeft,
+            phaseTime,
+            phaseDuration,
+            totalDuration
+        };
 
         // Update timer display in the breathing circle
         const updateTimer = () => {
@@ -1890,6 +1962,11 @@ class ClaraApp {
                     circle.className = 'breathing-circle exhaling';
                     break;
             }
+            
+            // Update stored state
+            this.breathingState.cyclePhase = cyclePhase;
+            this.breathingState.phaseTime = phaseTime;
+            this.breathingState.secondsLeft = secondsLeft;
         };
 
         // Start the breathing cycle
@@ -1898,14 +1975,63 @@ class ClaraApp {
 
         // Main exercise timer
         this.breathingInterval = setInterval(() => {
-            secondsLeft--;
-            updateTimer();
-            updateBreathingCycle();
+            if (!this.breathingPaused) {
+                secondsLeft--;
+                updateTimer();
+                updateBreathingCycle();
 
-            if (secondsLeft <= 0) {
-                this.endBreathingExercise();
+                if (secondsLeft <= 0) {
+                    this.endBreathingExercise();
+                }
             }
         }, 1000);
+    }
+
+    pauseBreathingExercise() {
+        console.log('⏸️ Pausing breathing exercise...');
+        this.breathingPaused = !this.breathingPaused;
+        
+        const pauseBtn = document.getElementById('pause-breathing');
+        const instruction = document.getElementById('breathing-instruction');
+        
+        if (this.breathingPaused) {
+            if (pauseBtn) pauseBtn.textContent = 'Resume';
+            if (instruction) instruction.textContent = 'Paused - Click Resume to continue';
+        } else {
+            if (pauseBtn) pauseBtn.textContent = 'Pause';
+            // Instruction will be updated by the next breathing cycle
+        }
+    }
+
+    stopBreathingExercise() {
+        console.log('⏹️ Stopping breathing exercise...');
+        
+        // Clear the interval
+        if (this.breathingInterval) {
+            clearInterval(this.breathingInterval);
+            this.breathingInterval = null;
+        }
+        
+        // Reset UI elements
+        const circle = document.getElementById('breathing-circle');
+        const instruction = document.getElementById('breathing-instruction');
+        const startBtn = document.getElementById('start-breathing');
+        const pauseBtn = document.getElementById('pause-breathing');
+        const stopBtn = document.getElementById('stop-breathing');
+        
+        if (circle) circle.className = 'breathing-circle';
+        if (instruction) instruction.textContent = 'Exercise stopped - You can restart or exit';
+        
+        // Reset button states
+        if (startBtn) startBtn.style.display = 'block';
+        if (pauseBtn) {
+            pauseBtn.style.display = 'none';
+            pauseBtn.textContent = 'Pause';
+        }
+        if (stopBtn) stopBtn.style.display = 'none';
+        
+        this.breathingPaused = false;
+        this.breathingState = null;
     }
 
     endBreathingExercise() {
@@ -2118,6 +2244,8 @@ class ClaraApp {
         // Clear any meditation state
         this.currentMeditationType = null;
         this.preMoodData = null;
+        this.breathingPaused = false;
+        this.breathingState = null;
         
         // Clear breathing interval if still running
         if (this.breathingInterval) {
