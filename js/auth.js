@@ -228,6 +228,7 @@ class AuthManager {
             'post': 3,
             'comment': 2,
             'like': 1,
+            'likeReceived': 3,
             'helpful_response': 5,
             'weekly_active': 10,
             'chatMessage': 3,
@@ -577,10 +578,8 @@ class AuthManager {
         try {
             console.log(`🎯 Awarding like-received points to user ${userId}`);
             
-            const profileRef = doc(db, COLLECTIONS.PROFILES, userId);
-            await updateDoc(profileRef, {
-                'stats.likesReceivedCount': increment(1)
-            });
+            // Use the main awardPoints function which handles both points and stats
+            await this.awardPoints(userId, 'likeReceived');
             
             console.log('✅ Like-received points awarded');
         } catch (error) {
@@ -598,7 +597,14 @@ class AuthManager {
             
             if (profileDoc.exists()) {
                 const currentData = profileDoc.data();
-                const pointValues = { 'like': 1, 'likeReceived': 0 };
+                const pointValues = { 
+                    'like': 1, 
+                    'likeReceived': 3,
+                    'comment': 2,
+                    'post': 3,
+                    'chatMessage': 3,
+                    'heartReaction': 1
+                };
                 const pointsToRemove = pointValues[actionType] || 0;
                 
                 const newPoints = Math.max(0, (currentData.points || 0) - pointsToRemove);
