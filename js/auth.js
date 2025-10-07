@@ -1067,15 +1067,23 @@ class AuthManager {
         try {
             console.log('🧘‍♀️ Saving meditation session...');
             
+            // Calculate duration if startTime and endTime are provided
+            let duration = sessionData.duration;
+            if (sessionData.startTime && sessionData.endTime) {
+                duration = Math.round((sessionData.endTime - sessionData.startTime) / 1000); // Duration in seconds
+            }
+            
             const session = {
                 uid: this.currentUser.uid,
                 type: sessionData.type,
-                duration: sessionData.duration,
-                completed: sessionData.completed,
-                startedAt: sessionData.startedAt,
-                completedAt: sessionData.completedAt || null,
-                preAssessmentId: sessionData.preAssessmentId || null,
-                postAssessmentId: sessionData.postAssessmentId || null,
+                duration: duration || 0,
+                completed: sessionData.completed || false,
+                startedAt: sessionData.startTime || sessionData.startedAt || new Date(),
+                completedAt: sessionData.endTime || sessionData.completedAt || (sessionData.completed ? new Date() : null),
+                preMoodData: sessionData.preMoodData || null,
+                postMoodData: sessionData.postMoodData || null,
+                improvements: sessionData.improvements || null,
+                meditationType: sessionData.type,
                 createdAt: serverTimestamp()
             };
 
