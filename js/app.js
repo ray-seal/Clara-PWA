@@ -1928,6 +1928,12 @@ class ClaraApp {
         try {
             console.log('📚 Loading meditation history...');
             
+            // Check if user is authenticated
+            if (!authManager.getCurrentUser()) {
+                alert('Please sign in to view your meditation history.');
+                return;
+            }
+            
             // Get meditation history from auth manager
             const history = await authManager.getMeditationHistory();
             
@@ -1979,11 +1985,11 @@ class ClaraApp {
                             <div class="improvements">
                                 <strong>Mood Improvements:</strong>
                                 <ul>
-                                    <li>Anxiety: ${session.improvements.anxietyLevel > 0 ? '+' : ''}${session.improvements.anxietyLevel}</li>
-                                    <li>Stress: ${session.improvements.stressLevel > 0 ? '+' : ''}${session.improvements.stressLevel}</li>
-                                    <li>Energy: ${session.improvements.energyLevel > 0 ? '+' : ''}${session.improvements.energyLevel}</li>
-                                    <li>Focus: ${session.improvements.focusLevel > 0 ? '+' : ''}${session.improvements.focusLevel}</li>
-                                    <li>Overall Mood: ${session.improvements.overallMood > 0 ? '+' : ''}${session.improvements.overallMood}</li>
+                                    <li>Stress Level: ${session.improvements.stress_level > 0 ? '+' : ''}${session.improvements.stress_level}</li>
+                                    <li>Anxiety Level: ${session.improvements.anxiety_level > 0 ? '+' : ''}${session.improvements.anxiety_level}</li>
+                                    <li>Energy Level: ${session.improvements.energy_level > 0 ? '+' : ''}${session.improvements.energy_level}</li>
+                                    <li>Focus & Clarity: ${session.improvements.focus_clarity > 0 ? '+' : ''}${session.improvements.focus_clarity}</li>
+                                    <li>Overall Mood: ${session.improvements.mood_overall > 0 ? '+' : ''}${session.improvements.mood_overall}</li>
                                 </ul>
                             </div>
                         ` : ''}
@@ -2014,7 +2020,13 @@ class ClaraApp {
 
         } catch (error) {
             console.error('❌ Error loading meditation history:', error);
-            this.showError('Failed to load meditation history. Please try again.');
+            
+            // Check if it's a permissions error
+            if (error.code === 'permission-denied') {
+                this.showError('Database permissions need to be updated for meditation features. Please contact support or check the Firebase console.');
+            } else {
+                this.showError('Failed to load meditation history. Please try again.');
+            }
         }
     }
 
