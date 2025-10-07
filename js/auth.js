@@ -1022,21 +1022,22 @@ class AuthManager {
     // =====================================================
 
     // Save mood assessment
-    async saveMoodAssessment(sessionId, responses, isPreSession = true) {
+    async saveMoodAssessment(assessmentData) {
         if (!this.currentUser) throw new Error('Not authenticated');
 
         try {
-            console.log(`💭 Saving ${isPreSession ? 'pre' : 'post'}-session mood assessment...`);
+            console.log(`💭 Saving ${assessmentData.type || 'mood'} assessment...`);
             
-            const assessmentData = {
-                sessionId: sessionId,
+            const dataToSave = {
                 uid: this.currentUser.uid,
-                responses: responses,
-                isPreSession: isPreSession,
+                type: assessmentData.type,
+                meditationType: assessmentData.meditationType,
+                responses: assessmentData, // Store the actual mood data
+                timestamp: assessmentData.timestamp || new Date(),
                 createdAt: serverTimestamp()
             };
 
-            const assessmentRef = await addDoc(collection(db, COLLECTIONS.MOOD_ASSESSMENTS), assessmentData);
+            const assessmentRef = await addDoc(collection(db, COLLECTIONS.MOOD_ASSESSMENTS), dataToSave);
             console.log('✅ Mood assessment saved successfully');
             return assessmentRef.id;
         } catch (error) {
