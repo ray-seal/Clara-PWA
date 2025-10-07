@@ -1,6 +1,7 @@
 // Clara PWA - Main Application
 import { authManager } from './auth.js';
 import { APP_CONFIG } from './config.js';
+import * as config from './config.js';
 
 class ClaraApp {
     constructor() {
@@ -915,15 +916,15 @@ class ClaraApp {
             <div class="card">
                 <h3>🧘‍♀️ Meditation & Mindfulness</h3>
                 <p>Guided meditation and breathing exercises for anxiety and stress relief.</p>
-                <button class="btn btn-primary mt-lg" onclick="alert('Meditation tools coming soon!')">
+                <button class="btn btn-primary mt-lg" onclick="claraApp.showMeditationMenu()">
                     Start Session
                 </button>
             </div>
             <div class="card">
                 <h3>📝 Mood Tracking</h3>
                 <p>Track your daily mood and emotions to identify patterns and triggers.</p>
-                <button class="btn btn-primary mt-lg" onclick="alert('Mood tracking coming soon!')">
-                    Log Mood
+                <button class="btn btn-primary mt-lg" onclick="claraApp.showMeditationHistory()">
+                    View History
                 </button>
             </div>
             <div class="card">
@@ -1593,6 +1594,358 @@ class ClaraApp {
         const messagesContainer = document.getElementById('chat-messages');
         if (messagesContainer) {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    }
+
+    // Meditation System Methods
+    showMeditationMenu() {
+        // Show meditation menu and hide other views
+        const meditationMenu = document.getElementById('meditation-menu');
+        const mainContent = document.querySelector('.main-content');
+        
+        if (meditationMenu && mainContent) {
+            meditationMenu.style.display = 'flex';
+            mainContent.style.display = 'none';
+        }
+    }
+
+    hideMeditationMenu() {
+        // Hide meditation menu and show main content
+        const meditationMenu = document.getElementById('meditation-menu');
+        const mainContent = document.querySelector('.main-content');
+        
+        if (meditationMenu && mainContent) {
+            meditationMenu.style.display = 'none';
+            mainContent.style.display = 'block';
+        }
+    }
+
+    async startMeditationSession(type) {
+        try {
+            console.log(`🧘‍♀️ Starting ${type} meditation session...`);
+            
+            // Hide menu and show pre-mood assessment
+            document.getElementById('meditation-menu').style.display = 'none';
+            document.getElementById('pre-mood-assessment').style.display = 'flex';
+            
+            // Store the selected meditation type
+            this.currentMeditationType = type;
+            
+        } catch (error) {
+            console.error('❌ Error starting meditation session:', error);
+            this.showError('Failed to start meditation session. Please try again.');
+        }
+    }
+
+    async submitPreMoodAssessment() {
+        try {
+            // Collect mood assessment data
+            const moodData = {};
+            const questions = [
+                'anxietyLevel',
+                'stressLevel', 
+                'energyLevel',
+                'focusLevel',
+                'overallMood'
+            ];
+
+            for (const question of questions) {
+                const slider = document.getElementById(`pre-${question}`);
+                if (slider) {
+                    moodData[question] = parseInt(slider.value);
+                }
+            }
+
+            console.log('📊 Pre-meditation mood assessment:', moodData);
+
+            // Save pre-assessment to auth manager
+            await authManager.saveMoodAssessment({
+                ...moodData,
+                type: 'pre-meditation',
+                meditationType: this.currentMeditationType,
+                timestamp: new Date()
+            });
+
+            // Store for later comparison
+            this.preMoodData = moodData;
+
+            // Hide pre-assessment and show breathing exercise
+            document.getElementById('pre-mood-assessment').style.display = 'none';
+            document.getElementById('breathing-exercise').style.display = 'flex';
+
+            // Start the breathing exercise
+            this.startBreathingExercise();
+
+        } catch (error) {
+            console.error('❌ Error submitting pre-mood assessment:', error);
+            this.showError('Failed to save mood assessment. Please try again.');
+        }
+    }
+
+    startBreathingExercise() {
+        const circle = document.querySelector('.breathing-circle');
+        const instruction = document.getElementById('breathing-instruction');
+        const sessionTimer = document.getElementById('session-timer');
+        
+        if (!circle || !instruction || !sessionTimer) return;
+
+        console.log('🫁 Starting 4-4-4 breathing exercise...');
+
+        // Get meditation type config for duration
+        const { MEDITATION_TYPES } = config;
+        const meditationType = MEDITATION_TYPES[this.currentMeditationType];
+        const totalDuration = meditationType?.duration || 300; // Default 5 minutes
+        
+        let cyclePhase = 0; // 0: inhale, 1: hold, 2: exhale  
+        let secondsLeft = totalDuration;
+        let phaseTime = 0;
+        const phaseDuration = 4; // 4 seconds per phase
+
+        // Update timer display
+        const updateTimer = () => {
+            const minutes = Math.floor(secondsLeft / 60);
+            const seconds = secondsLeft % 60;
+            sessionTimer.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        };
+
+        // Update breathing instruction and circle animation
+        const updateBreathingCycle = () => {
+            phaseTime++;
+            
+            if (phaseTime > phaseDuration) {
+                phaseTime = 1;
+                cyclePhase = (cyclePhase + 1) % 3;
+            }
+
+            // Update instruction text and circle animation
+            switch (cyclePhase) {
+                case 0: // Inhale
+                    instruction.textContent = 'Breathe In';
+                    circle.className = 'breathing-circle inhaling';
+                    break;
+                case 1: // Hold
+                    instruction.textContent = 'Hold';
+                    circle.className = 'breathing-circle holding';
+                    break;
+                case 2: // Exhale
+                    instruction.textContent = 'Breathe Out';
+                    circle.className = 'breathing-circle exhaling';
+                    break;
+            }
+        };
+
+        // Start the breathing cycle
+        updateTimer();
+        updateBreathingCycle();
+
+        // Main exercise timer
+        this.breathingInterval = setInterval(() => {
+            secondsLeft--;
+            updateTimer();
+            updateBreathingCycle();
+
+            if (secondsLeft <= 0) {
+                this.endBreathingExercise();
+            }
+        }, 1000);
+    }
+
+    endBreathingExercise() {
+        console.log('✅ Breathing exercise completed');
+        
+        // Clear the interval
+        if (this.breathingInterval) {
+            clearInterval(this.breathingInterval);
+            this.breathingInterval = null;
+        }
+
+        // Hide breathing exercise and show post-mood assessment
+        document.getElementById('breathing-exercise').style.display = 'none';
+        document.getElementById('post-mood-assessment').style.display = 'flex';
+    }
+
+    async submitPostMoodAssessment() {
+        try {
+            // Collect post-meditation mood data
+            const postMoodData = {};
+            const questions = [
+                'anxietyLevel',
+                'stressLevel',
+                'energyLevel', 
+                'focusLevel',
+                'overallMood'
+            ];
+
+            for (const question of questions) {
+                const slider = document.getElementById(`post-${question}`);
+                if (slider) {
+                    postMoodData[question] = parseInt(slider.value);
+                }
+            }
+
+            console.log('📊 Post-meditation mood assessment:', postMoodData);
+
+            // Save post-assessment
+            await authManager.saveMoodAssessment({
+                ...postMoodData,
+                type: 'post-meditation',
+                meditationType: this.currentMeditationType,
+                timestamp: new Date()
+            });
+
+            // Calculate improvements and save session
+            const improvements = {};
+            for (const question of questions) {
+                improvements[question] = postMoodData[question] - this.preMoodData[question];
+            }
+
+            // Save complete meditation session
+            await authManager.saveMeditationSession({
+                type: this.currentMeditationType,
+                startTime: new Date(Date.now() - (this.currentMeditationType === 'breathing' ? 300000 : 600000)), // Estimate start time
+                endTime: new Date(),
+                preMoodData: this.preMoodData,
+                postMoodData: postMoodData,
+                improvements: improvements,
+                completed: true
+            });
+
+            console.log('💾 Meditation session saved successfully');
+
+            // Award points (handled in auth.js)
+            
+            // Show completion message and return to main content
+            alert('🎉 Meditation session completed! You earned 10 points.');
+            this.returnToMainContent();
+
+        } catch (error) {
+            console.error('❌ Error submitting post-mood assessment:', error);
+            this.showError('Failed to save session data. Please try again.');
+        }
+    }
+
+    async showMeditationHistory() {
+        try {
+            console.log('📚 Loading meditation history...');
+            
+            // Get meditation history from auth manager
+            const history = await authManager.getMeditationHistory();
+            
+            if (history.length === 0) {
+                alert('📖 No meditation sessions yet. Start your first session to see your progress!');
+                return;
+            }
+
+            // Create and show history modal/view
+            let historyHtml = `
+                <div class="meditation-history-modal" style="
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.7);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1000;
+                ">
+                    <div class="history-content" style="
+                        background: white;
+                        padding: 2rem;
+                        border-radius: 15px;
+                        max-width: 90%;
+                        max-height: 80%;
+                        overflow-y: auto;
+                    ">
+                        <h2>🧘‍♀️ Your Meditation Journey</h2>
+                        <p>Total Sessions: ${history.length}</p>
+                        <div class="history-list">
+            `;
+
+            history.forEach((session, index) => {
+                const date = session.endTime?.toDate?.() || new Date(session.endTime);
+                historyHtml += `
+                    <div class="session-card" style="
+                        border: 1px solid #ddd;
+                        padding: 1rem;
+                        margin: 0.5rem 0;
+                        border-radius: 8px;
+                    ">
+                        <h4>${session.type.charAt(0).toUpperCase() + session.type.slice(1)} Session</h4>
+                        <p><strong>Date:</strong> ${date.toLocaleDateString()}</p>
+                        <p><strong>Completed:</strong> ${session.completed ? '✅ Yes' : '❌ No'}</p>
+                        ${session.improvements ? `
+                            <div class="improvements">
+                                <strong>Mood Improvements:</strong>
+                                <ul>
+                                    <li>Anxiety: ${session.improvements.anxietyLevel > 0 ? '+' : ''}${session.improvements.anxietyLevel}</li>
+                                    <li>Stress: ${session.improvements.stressLevel > 0 ? '+' : ''}${session.improvements.stressLevel}</li>
+                                    <li>Energy: ${session.improvements.energyLevel > 0 ? '+' : ''}${session.improvements.energyLevel}</li>
+                                    <li>Focus: ${session.improvements.focusLevel > 0 ? '+' : ''}${session.improvements.focusLevel}</li>
+                                    <li>Overall Mood: ${session.improvements.overallMood > 0 ? '+' : ''}${session.improvements.overallMood}</li>
+                                </ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+
+            historyHtml += `
+                        </div>
+                        <button onclick="this.closest('.meditation-history-modal').remove()" 
+                                style="
+                                    background: #007bff;
+                                    color: white;
+                                    border: none;
+                                    padding: 0.5rem 1rem;
+                                    border-radius: 5px;
+                                    cursor: pointer;
+                                    margin-top: 1rem;
+                                ">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Add to body
+            document.body.insertAdjacentHTML('beforeend', historyHtml);
+
+        } catch (error) {
+            console.error('❌ Error loading meditation history:', error);
+            this.showError('Failed to load meditation history. Please try again.');
+        }
+    }
+
+    returnToMainContent() {
+        // Hide all meditation views and return to main content
+        const meditationViews = [
+            'meditation-menu',
+            'pre-mood-assessment', 
+            'breathing-exercise',
+            'post-mood-assessment'
+        ];
+
+        meditationViews.forEach(viewId => {
+            const view = document.getElementById(viewId);
+            if (view) view.style.display = 'none';
+        });
+
+        // Show main content
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+            mainContent.style.display = 'block';
+        }
+
+        // Clear any meditation state
+        this.currentMeditationType = null;
+        this.preMoodData = null;
+        
+        // Clear breathing interval if still running
+        if (this.breathingInterval) {
+            clearInterval(this.breathingInterval);
+            this.breathingInterval = null;
         }
     }
 

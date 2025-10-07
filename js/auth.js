@@ -232,7 +232,8 @@ class AuthManager {
             'helpful_response': 5,
             'weekly_active': 10,
             'chatMessage': 3,
-            'heartReaction': 1
+            'heartReaction': 1,
+            'meditationSession': 10
         };
 
         const points = pointValues[actionType] || 0;
@@ -1014,6 +1015,96 @@ class AuthManager {
             console.error('❌ Full error object:', error);
             callback([]);
         });
+    }
+
+    // =====================================================
+    // MEDITATION & WELLNESS FUNCTIONALITY
+    // =====================================================
+
+    // Save mood assessment
+    async saveMoodAssessment(sessionId, responses, isPreSession = true) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            console.log(`💭 Saving ${isPreSession ? 'pre' : 'post'}-session mood assessment...`);
+            
+            const assessmentData = {
+                sessionId: sessionId,
+                uid: this.currentUser.uid,
+                responses: responses,
+                isPreSession: isPreSession,
+                createdAt: serverTimestamp()
+            };
+
+            const assessmentRef = await addDoc(collection(db, COLLECTIONS.MOOD_ASSESSMENTS), assessmentData);
+            console.log('✅ Mood assessment saved successfully');
+            return assessmentRef.id;
+        } catch (error) {
+            console.error('❌ Error saving mood assessment:', error);
+            throw error;
+        }
+    }
+
+    // Save meditation session
+    async saveMeditationSession(sessionData) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            console.log('🧘‍♀️ Saving meditation session...');
+            
+            const session = {
+                uid: this.currentUser.uid,
+                type: sessionData.type,
+                duration: sessionData.duration,
+                completed: sessionData.completed,
+                startedAt: sessionData.startedAt,
+                completedAt: sessionData.completedAt || null,
+                preAssessmentId: sessionData.preAssessmentId || null,
+                postAssessmentId: sessionData.postAssessmentId || null,
+                createdAt: serverTimestamp()
+            };
+
+            const sessionRef = await addDoc(collection(db, COLLECTIONS.MEDITATION_SESSIONS), session);
+            
+            // Award points for completing meditation
+            if (sessionData.completed) {
+                await this.awardPoints(this.currentUser.uid, 'meditationSession');
+            }
+            
+            console.log('✅ Meditation session saved successfully');
+            return sessionRef.id;
+        } catch (error) {
+            console.error('❌ Error saving meditation session:', error);
+            throw error;
+        }
+    }
+
+    // Get user's meditation history
+    async getMeditationHistory(limit = 20) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            console.log('📊 Fetching meditation history...');
+            
+            const sessionsQuery = query(
+                collection(db, COLLECTIONS.MEDITATION_SESSIONS),
+                where('uid', '==', this.currentUser.uid),
+                orderBy('createdAt', 'desc'),
+                limit(limit)
+            );
+
+            const snapshot = await getDocs(sessionsQuery);
+            const sessions = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            console.log(`✅ Found ${sessions.length} meditation sessions`);
+            return sessions;
+        } catch (error) {
+            console.error('❌ Error fetching meditation history:', error);
+            throw error;
+        }
     }
 }
 

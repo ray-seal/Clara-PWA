@@ -208,10 +208,83 @@
             <!-- Wellness Tab -->
             <div id="wellness-tab" class="tab-content">
                 <div class="wellness-container">
-                    <h2>Mental Wellness Tools</h2>
-                    <p>Resources and tools for your mental health journey.</p>
-                    <div id="wellness-tools-container" class="wellness-tools-container">
-                        <!-- Wellness tools will be loaded here -->
+                    <!-- Main Wellness Tools View -->
+                    <div id="wellness-tools-view" class="wellness-tools-view">
+                        <h2>Mental Wellness Tools</h2>
+                        <p>Resources and tools for your mental health journey.</p>
+                        <div id="wellness-tools-container" class="wellness-tools-container">
+                            <!-- Wellness tools will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Meditation Selection View -->
+                    <div id="meditation-selection-view" class="meditation-view" style="display: none;">
+                        <div class="meditation-header">
+                            <button id="back-to-wellness" class="back-button">
+                                <span class="material-icons">arrow_back</span>
+                            </button>
+                            <div class="meditation-title">
+                                <h2>🧘‍♀️ Meditation & Mindfulness</h2>
+                                <p>Choose a meditation practice to begin your mindfulness journey</p>
+                            </div>
+                        </div>
+                        <div id="meditation-types-container" class="meditation-types-container">
+                            <!-- Meditation types will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Mood Assessment View -->
+                    <div id="mood-assessment-view" class="meditation-view" style="display: none;">
+                        <div class="meditation-header">
+                            <button id="back-to-meditation-types" class="back-button">
+                                <span class="material-icons">arrow_back</span>
+                            </button>
+                            <div class="meditation-title">
+                                <h2 id="mood-assessment-title">📝 Pre-Session Assessment</h2>
+                                <p>Help us understand how you're feeling before we begin</p>
+                            </div>
+                        </div>
+                        <div id="mood-questions-container" class="mood-questions-container">
+                            <!-- Mood questions will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Breathing Exercise View -->
+                    <div id="breathing-exercise-view" class="meditation-view" style="display: none;">
+                        <div class="breathing-exercise-container">
+                            <div class="breathing-header">
+                                <button id="exit-breathing" class="back-button">
+                                    <span class="material-icons">close</span>
+                                </button>
+                                <h2>🫁 Breathing Exercise</h2>
+                            </div>
+                            
+                            <div class="breathing-main">
+                                <div class="breathing-circle-container">
+                                    <div id="breathing-circle" class="breathing-circle">
+                                        <div class="breathing-text">
+                                            <div id="breathing-instruction" class="breathing-instruction">Get Ready</div>
+                                            <div id="breathing-count" class="breathing-count">3</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="breathing-controls">
+                                    <div class="breathing-progress">
+                                        <div id="breathing-progress-bar" class="progress-bar">
+                                            <div id="breathing-progress-fill" class="progress-fill"></div>
+                                        </div>
+                                        <div id="breathing-time-left" class="time-left">2:00</div>
+                                    </div>
+                                    
+                                    <div class="breathing-buttons">
+                                        <button id="start-breathing" class="btn btn-primary">Start</button>
+                                        <button id="pause-breathing" class="btn btn-secondary" style="display: none;">Pause</button>
+                                        <button id="stop-breathing" class="btn btn-outline" style="display: none;">Stop</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

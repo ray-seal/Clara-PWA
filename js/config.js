@@ -32,6 +32,8 @@ export const COLLECTIONS = {
   CHAT_MESSAGES: 'chatMessages',
   CHAT_REACTIONS: 'chatReactions',
   USER_PRESENCE: 'userPresence',
+  MEDITATION_SESSIONS: 'meditationSessions',
+  MOOD_ASSESSMENTS: 'moodAssessments',
   NOTIFICATIONS: 'notifications',
   REPORTS: 'reports'
 };
@@ -92,6 +94,75 @@ export const APP_CONFIG = {
     LIKE_RECEIVED: 3,
     CHAT_MESSAGE: 3,
     HEART_REACTION: 1,
-    DAILY_LOGIN: 5
+    DAILY_LOGIN: 5,
+    MEDITATION_SESSION: 10
+  },
+  
+  // Meditation configuration
+  MEDITATION: {
+    TYPES: [
+      {
+        id: 'breathing',
+        name: 'Breathing Exercise',
+        description: '4-4-4 breathing technique for relaxation and anxiety relief',
+        icon: '🫁',
+        color: '#4A90E2',
+        duration: 120, // 2 minutes in seconds
+        pattern: {
+          inhale: 4,
+          hold: 4,
+          exhale: 4
+        }
+      },
+      {
+        id: 'body-scan',
+        name: 'Body Scan',
+        description: 'Progressive relaxation through body awareness',
+        icon: '🧘‍♀️',
+        color: '#27AE60',
+        comingSoon: true
+      },
+      {
+        id: 'loving-kindness',
+        name: 'Loving Kindness',
+        description: 'Cultivate compassion and self-love',
+        icon: '💗',
+        color: '#E91E63',
+        comingSoon: true
+      }
+    ],
+    
+    MOOD_QUESTIONS: [
+      {
+        id: 'stress_level',
+        question: 'How stressed are you feeling right now?',
+        type: 'scale',
+        scale: { min: 1, max: 10, labels: ['Very Relaxed', 'Very Stressed'] }
+      },
+      {
+        id: 'anxiety_level',
+        question: 'How anxious are you feeling?',
+        type: 'scale',
+        scale: { min: 1, max: 10, labels: ['Very Calm', 'Very Anxious'] }
+      },
+      {
+        id: 'mood_overall',
+        question: 'How would you describe your overall mood?',
+        type: 'scale',
+        scale: { min: 1, max: 10, labels: ['Very Low', 'Very High'] }
+      },
+      {
+        id: 'energy_level',
+        question: 'What is your energy level?',
+        type: 'scale',
+        scale: { min: 1, max: 10, labels: ['Very Tired', 'Very Energetic'] }
+      },
+      {
+        id: 'focus_clarity',
+        question: 'How clear and focused do you feel?',
+        type: 'scale',
+        scale: { min: 1, max: 10, labels: ['Very Foggy', 'Very Clear'] }
+      }
+    ]
   }
 };
