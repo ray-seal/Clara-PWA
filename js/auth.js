@@ -1025,24 +1025,38 @@ class AuthManager {
     async saveMoodAssessment(assessmentData) {
         if (!this.currentUser) throw new Error('Not authenticated');
 
-        try {
-            console.log(`💭 Saving ${assessmentData.type || 'mood'} assessment...`);
-            
-            const dataToSave = {
-                uid: this.currentUser.uid,
-                type: assessmentData.type,
-                meditationType: assessmentData.meditationType,
-                responses: assessmentData, // Store the actual mood data
-                timestamp: assessmentData.timestamp || new Date(),
-                createdAt: serverTimestamp()
-            };
+        let retries = 3;
+        while (retries > 0) {
+            try {
+                console.log(`💭 Saving ${assessmentData.type || 'mood'} assessment... (${4 - retries}/3)`);
+                
+                const dataToSave = {
+                    uid: this.currentUser.uid,
+                    type: assessmentData.type,
+                    meditationType: assessmentData.meditationType,
+                    responses: assessmentData, // Store the actual mood data
+                    timestamp: assessmentData.timestamp || new Date(),
+                    createdAt: serverTimestamp()
+                };
 
-            const assessmentRef = await addDoc(collection(db, COLLECTIONS.MOOD_ASSESSMENTS), dataToSave);
-            console.log('✅ Mood assessment saved successfully');
-            return assessmentRef.id;
-        } catch (error) {
-            console.error('❌ Error saving mood assessment:', error);
-            throw error;
+                const assessmentRef = await addDoc(collection(db, COLLECTIONS.MOOD_ASSESSMENTS), dataToSave);
+                console.log('✅ Mood assessment saved successfully');
+                return assessmentRef.id;
+            } catch (error) {
+                retries--;
+                console.error(`❌ Error saving mood assessment (${retries} retries left):`, error);
+                
+                if (retries === 0) {
+                    // If it's a network error, suggest refresh
+                    if (error.code === 'unavailable' || error.message.includes('NS_BINDING_ABORTED')) {
+                        throw new Error('Network connection issue. Please refresh the page and try again.');
+                    }
+                    throw error;
+                }
+                
+                // Wait 1 second before retry
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
         }
     }
 
