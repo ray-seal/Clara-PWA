@@ -2031,7 +2031,9 @@ class ClaraApp {
             `;
 
             history.forEach((session, index) => {
-                const date = session.endTime?.toDate?.() || new Date(session.endTime);
+                // Use completedAt if available, otherwise fall back to createdAt
+                const dateField = session.completedAt || session.createdAt;
+                const date = dateField?.toDate?.() || new Date(dateField);
                 historyHtml += `
                     <div class="session-card" style="
                         border: 1px solid #ddd;
