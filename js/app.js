@@ -1625,19 +1625,24 @@ class ClaraApp {
             // Populate meditation types first
             this.loadMeditationTypes();
             
-            // Hide main content
-            mainContent.style.display = 'none';
+            // Instead of hiding main content, hide just the wellness tools view
+            const wellnessToolsView = document.getElementById('wellness-tools-view');
+            if (wellnessToolsView) {
+                wellnessToolsView.style.display = 'none';
+            }
             
-            // Show meditation menu with specific block display to override any CSS
+            // Show meditation menu with explicit sizing
             meditationMenu.style.display = 'block';
             meditationMenu.style.visibility = 'visible';
             meditationMenu.style.position = 'relative';
             meditationMenu.style.width = '100%';
-            meditationMenu.style.height = 'auto';
-            meditationMenu.style.minHeight = '400px';
+            meditationMenu.style.height = '100%';
+            meditationMenu.style.minHeight = '500px';
             meditationMenu.style.zIndex = '1000';
             meditationMenu.style.backgroundColor = 'white';
             meditationMenu.style.border = '2px solid red'; // Temporary border to see if it's there
+            meditationMenu.style.padding = '20px';
+            meditationMenu.style.boxSizing = 'border-box';
             
             console.log('✅ Meditation menu should now be visible');
             console.log('Menu display after setting:', meditationMenu.style.display);
@@ -1738,13 +1743,13 @@ class ClaraApp {
     }
 
     hideMeditationMenu() {
-        // Hide meditation menu and show main content
+        // Hide meditation menu and show wellness tools view
         const meditationMenu = document.getElementById('meditation-selection-view');
-        const mainContent = document.querySelector('.main-content');
+        const wellnessToolsView = document.getElementById('wellness-tools-view');
         
-        if (meditationMenu && mainContent) {
+        if (meditationMenu && wellnessToolsView) {
             meditationMenu.style.display = 'none';
-            mainContent.style.display = 'block';
+            wellnessToolsView.style.display = 'block';
         }
     }
 
