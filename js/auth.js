@@ -1080,7 +1080,7 @@ class AuthManager {
     }
 
     // Get user's meditation history
-    async getMeditationHistory(limit = 20) {
+    async getMeditationHistory(maxRecords = 20) {
         if (!this.currentUser) throw new Error('Not authenticated');
 
         try {
@@ -1090,7 +1090,7 @@ class AuthManager {
                 collection(db, COLLECTIONS.MEDITATION_SESSIONS),
                 where('uid', '==', this.currentUser.uid),
                 orderBy('createdAt', 'desc'),
-                limit(limit)
+                limit(maxRecords)
             );
 
             const snapshot = await getDocs(sessionsQuery);

@@ -1600,18 +1600,45 @@ class ClaraApp {
     // Meditation System Methods
     showMeditationMenu() {
         // Show meditation menu and hide other views
-        const meditationMenu = document.getElementById('meditation-menu');
+        const meditationMenu = document.getElementById('meditation-selection-view');
         const mainContent = document.querySelector('.main-content');
         
         if (meditationMenu && mainContent) {
+            // Populate meditation types
+            this.loadMeditationTypes();
+            
             meditationMenu.style.display = 'flex';
             mainContent.style.display = 'none';
         }
     }
 
+    loadMeditationTypes() {
+        const container = document.getElementById('meditation-types-container');
+        if (!container) return;
+
+        const { MEDITATION_TYPES } = config;
+        
+        container.innerHTML = Object.entries(MEDITATION_TYPES).map(([key, type]) => `
+            <div class="meditation-type-card">
+                <div class="meditation-type-icon">${type.emoji}</div>
+                <div class="meditation-type-content">
+                    <h3>${type.name}</h3>
+                    <p>${type.description}</p>
+                    <div class="meditation-type-meta">
+                        <span class="duration">⏱️ ${Math.floor(type.duration / 60)} minutes</span>
+                        <span class="difficulty">${type.difficulty}</span>
+                    </div>
+                    <button class="btn btn-primary meditation-start-btn" onclick="claraApp.startMeditationSession('${key}')">
+                        Start Session
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
     hideMeditationMenu() {
         // Hide meditation menu and show main content
-        const meditationMenu = document.getElementById('meditation-menu');
+        const meditationMenu = document.getElementById('meditation-selection-view');
         const mainContent = document.querySelector('.main-content');
         
         if (meditationMenu && mainContent) {
@@ -1625,16 +1652,77 @@ class ClaraApp {
             console.log(`🧘‍♀️ Starting ${type} meditation session...`);
             
             // Hide menu and show pre-mood assessment
-            document.getElementById('meditation-menu').style.display = 'none';
-            document.getElementById('pre-mood-assessment').style.display = 'flex';
+            document.getElementById('meditation-selection-view').style.display = 'none';
+            document.getElementById('mood-assessment-view').style.display = 'flex';
             
             // Store the selected meditation type
             this.currentMeditationType = type;
+            
+            // Load pre-session mood assessment
+            this.loadMoodAssessment('pre');
             
         } catch (error) {
             console.error('❌ Error starting meditation session:', error);
             this.showError('Failed to start meditation session. Please try again.');
         }
+    }
+
+    loadMoodAssessment(type) {
+        const container = document.getElementById('mood-questions-container');
+        const title = document.getElementById('mood-assessment-title');
+        
+        if (!container || !title) return;
+
+        // Update title based on assessment type
+        if (type === 'pre') {
+            title.textContent = '📝 Pre-Session Assessment';
+            title.nextElementSibling.textContent = 'Help us understand how you\'re feeling before we begin';
+        } else {
+            title.textContent = '📊 Post-Session Assessment';
+            title.nextElementSibling.textContent = 'How are you feeling after your meditation session?';
+        }
+
+        const { MOOD_ASSESSMENTS } = config;
+        
+        container.innerHTML = `
+            <form id="mood-assessment-form" class="mood-assessment-form">
+                ${MOOD_ASSESSMENTS.questions.map((question, index) => `
+                    <div class="mood-question">
+                        <label for="${type}-${question.id}" class="mood-question-label">
+                            ${question.question}
+                        </label>
+                        <div class="mood-slider-container">
+                            <span class="mood-scale-label">1</span>
+                            <input type="range" 
+                                   id="${type}-${question.id}" 
+                                   class="mood-slider" 
+                                   min="1" 
+                                   max="10" 
+                                   value="5"
+                                   data-question="${question.id}">
+                            <span class="mood-scale-label">10</span>
+                        </div>
+                        <div class="mood-value-display">
+                            <span id="${type}-${question.id}-value">5</span>/10
+                        </div>
+                    </div>
+                `).join('')}
+                
+                <button type="button" class="btn btn-primary mood-submit-btn" onclick="claraApp.submit${type === 'pre' ? 'Pre' : 'Post'}MoodAssessment()">
+                    ${type === 'pre' ? 'Continue to Meditation' : 'Complete Session'}
+                </button>
+            </form>
+        `;
+
+        // Add event listeners for slider updates
+        container.querySelectorAll('.mood-slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const valueDisplay = document.getElementById(`${e.target.id}-value`);
+                if (valueDisplay) {
+                    valueDisplay.textContent = e.target.value;
+                }
+            });
+        });
     }
 
     async submitPreMoodAssessment() {
@@ -1670,8 +1758,8 @@ class ClaraApp {
             this.preMoodData = moodData;
 
             // Hide pre-assessment and show breathing exercise
-            document.getElementById('pre-mood-assessment').style.display = 'none';
-            document.getElementById('breathing-exercise').style.display = 'flex';
+            document.getElementById('mood-assessment-view').style.display = 'none';
+            document.getElementById('breathing-exercise-view').style.display = 'flex';
 
             // Start the breathing exercise
             this.startBreathingExercise();
@@ -1683,11 +1771,14 @@ class ClaraApp {
     }
 
     startBreathingExercise() {
-        const circle = document.querySelector('.breathing-circle');
+        const circle = document.getElementById('breathing-circle');
         const instruction = document.getElementById('breathing-instruction');
-        const sessionTimer = document.getElementById('session-timer');
+        const sessionTimer = document.getElementById('breathing-time-left');
         
-        if (!circle || !instruction || !sessionTimer) return;
+        if (!circle || !instruction || !sessionTimer) {
+            console.error('❌ Missing breathing exercise elements');
+            return;
+        }
 
         console.log('🫁 Starting 4-4-4 breathing exercise...');
 
@@ -1760,8 +1851,11 @@ class ClaraApp {
         }
 
         // Hide breathing exercise and show post-mood assessment
-        document.getElementById('breathing-exercise').style.display = 'none';
-        document.getElementById('post-mood-assessment').style.display = 'flex';
+        document.getElementById('breathing-exercise-view').style.display = 'none';
+        document.getElementById('mood-assessment-view').style.display = 'flex';
+        
+        // Load post-session mood assessment
+        this.loadMoodAssessment('post');
     }
 
     async submitPostMoodAssessment() {
@@ -1921,10 +2015,9 @@ class ClaraApp {
     returnToMainContent() {
         // Hide all meditation views and return to main content
         const meditationViews = [
-            'meditation-menu',
-            'pre-mood-assessment', 
-            'breathing-exercise',
-            'post-mood-assessment'
+            'meditation-selection-view',
+            'mood-assessment-view', 
+            'breathing-exercise-view'
         ];
 
         meditationViews.forEach(viewId => {
