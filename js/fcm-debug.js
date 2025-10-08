@@ -44,7 +44,6 @@ export class FCMDebugPanel {
         const status = await this.getFCMStatus();
         
         panel.innerHTML = `
-            panel.innerHTML = `
             <h4 style="margin: 0 0 10px 0; color: #4CAF50;">🔧 FCM Debug Panel</h4>
             <div><strong>Permission:</strong> ${status.permission}</div>
             <div><strong>FCM Available:</strong> ${status.fcmAvailable ? '✅' : '❌'}</div>
@@ -67,7 +66,6 @@ export class FCMDebugPanel {
             <button onclick="fcmDebugPanel.testDirectNotification()" style="background: #9C27B0; color: white; border: none; padding: 5px 10px; border-radius: 4px; margin: 2px;">
                 Direct Test
             </button>
-        `;
         `;
 
         panel.appendChild(closeBtn);
