@@ -599,6 +599,12 @@ class ClaraApp {
     }
 
     setupPostInteractions() {
+        // Remove existing event listeners first to prevent duplicates
+        document.querySelectorAll('.like-btn').forEach(btn => {
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+        });
+        
         // Like buttons
         document.querySelectorAll('.like-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
@@ -1165,7 +1171,10 @@ class ClaraApp {
                     }
                     
                     // Navigate to the relevant content if applicable
-                    this.handleNotificationClick(notification);
+                    const notificationData = notifications.find(n => n.id === notificationId);
+                    if (notificationData) {
+                        this.handleNotificationClick(notificationData);
+                    }
                 });
             });
 
@@ -1361,6 +1370,12 @@ class ClaraApp {
 
             // Add to DOM
             document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // Show the modal
+            const modal = document.getElementById('user-profile-modal');
+            if (modal) {
+                modal.style.display = 'flex';
+            }
             
         } catch (error) {
             console.error('❌ Error loading user profile:', error);
