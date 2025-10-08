@@ -1315,13 +1315,16 @@ class ClaraApp {
             console.log('👤 Loading user profile:', userId);
             
             // Hide main content and show profile page
-            document.getElementById('main-content').style.display = 'none';
-            document.getElementById('bottom-nav').style.display = 'none';
+            const mainContent = document.querySelector('.main-content');
+            const tabNav = document.querySelector('.tab-nav');
+            
+            if (mainContent) mainContent.style.display = 'none';
+            if (tabNav) tabNav.style.display = 'none';
             
             // Get user profile data
             const userProfile = await authManager.getUserProfile(userId);
             if (!userProfile) {
-                this.showNotification('User profile not found', 'error');
+                alert('User profile not found'); // Use alert instead of this.showNotification
                 this.closeUserProfile();
                 return;
             }
@@ -1394,7 +1397,7 @@ class ClaraApp {
             
         } catch (error) {
             console.error('❌ Error loading user profile:', error);
-            this.showNotification('Failed to load user profile', 'error');
+            alert('Failed to load user profile'); // Use alert instead of this.showNotification
         }
     }
 
@@ -1406,8 +1409,11 @@ class ClaraApp {
         }
         
         // Show main content again
-        document.getElementById('main-content').style.display = 'block';
-        document.getElementById('bottom-nav').style.display = 'flex';
+        const mainContent = document.querySelector('.main-content');
+        const tabNav = document.querySelector('.tab-nav');
+        
+        if (mainContent) mainContent.style.display = 'block';
+        if (tabNav) tabNav.style.display = 'flex';
     }
 
     // Load user's posts for their profile
