@@ -1206,7 +1206,7 @@ class AuthManager {
     }
 
     // Get user's notifications
-    async getNotifications(limit = 20) {
+    async getNotifications(limitCount = 20) {
         if (!this.currentUser) throw new Error('Not authenticated');
 
         try {
@@ -1216,7 +1216,7 @@ class AuthManager {
                 collection(db, COLLECTIONS.NOTIFICATIONS),
                 where('recipientId', '==', this.currentUser.uid),
                 orderBy('createdAt', 'desc'),
-                limit(limit)
+                limit(limitCount)
             );
 
             const snapshot = await getDocs(notificationsQuery);
@@ -1399,21 +1399,26 @@ class AuthManager {
 
             // Request permission if not already granted
             if (permission === 'default') {
+                console.log('🔔 Requesting notification permission from user...');
                 permission = await Notification.requestPermission();
                 console.log('🔔 Permission after request:', permission);
             }
 
             if (permission === 'granted') {
+                console.log('✅ Notification permission granted, getting FCM token...');
                 // Get FCM token
                 const token = await this.getFCMToken();
                 if (token) {
                     // Save token to user profile
                     await this.saveFCMToken(token);
-                    console.log('✅ Push notifications enabled');
+                    console.log('✅ Push notifications fully enabled');
                     return token;
+                } else {
+                    console.warn('⚠️ FCM token could not be obtained');
+                    return null;
                 }
             } else {
-                console.log('❌ Notification permission denied');
+                console.log(`❌ Notification permission ${permission}`);
                 return null;
             }
         } catch (error) {

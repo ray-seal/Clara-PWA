@@ -921,17 +921,37 @@ class ClaraApp {
     }
 
     async enablePushNotifications() {
+        // Disable the button to prevent multiple clicks
+        const enableBtn = document.getElementById('enable-push-btn');
+        if (enableBtn) {
+            enableBtn.disabled = true;
+            enableBtn.textContent = 'Requesting...';
+        }
+
         try {
             const token = await authManager.requestNotificationPermission();
+            
+            // Wait a bit to let browser permission dialog resolve
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
             if (token) {
                 this.showNotification('✅ Push notifications enabled! You\'ll now receive alerts for likes and comments.', 'success');
+                console.log('✅ Push notifications successfully enabled');
             } else {
-                this.showNotification('❌ Could not enable push notifications. Please check your browser settings.', 'error');
+                // Check the actual permission status
+                const permission = Notification.permission;
+                if (permission === 'denied') {
+                    this.showNotification('❌ Notifications blocked. You can enable them in your browser settings.', 'error');
+                } else {
+                    this.showNotification('❌ Could not enable push notifications. Please try again.', 'error');
+                }
             }
         } catch (error) {
             console.error('❌ Error enabling push notifications:', error);
             this.showNotification('❌ Error enabling push notifications.', 'error');
         }
+        
+        // Always dismiss the prompt after handling
         this.dismissPushPrompt();
     }
 
