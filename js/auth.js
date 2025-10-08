@@ -1368,7 +1368,7 @@ class AuthManager {
     // =====================================================
 
     // Create a notification
-    async createNotification(recipientId, type, message, data = {}) {
+    async createNotification(recipientId, type, message, metadata = {}) {
         if (!this.currentUser) throw new Error('Not authenticated');
 
         try {
@@ -1379,17 +1379,52 @@ class AuthManager {
                 senderId: this.currentUser.uid,
                 type: type, // 'like', 'comment', 'heart_reaction', etc.
                 message: message,
-                data: data, // Additional context (postId, messageId, etc.)
+                metadata: metadata, // Additional context (postId, messageId, etc.)
                 read: false,
                 createdAt: serverTimestamp()
             };
 
             const notificationRef = await addDoc(collection(db, COLLECTIONS.NOTIFICATIONS), notification);
+            
+            // Also send push notification via Vercel function
+            try {
+                await this.sendPushNotification(recipientId, message, type, metadata);
+            } catch (pushError) {
+                console.warn('⚠️ Failed to send push notification:', pushError);
+                // Don't fail the notification creation if push fails
+            }
+            
             console.log('✅ Notification created successfully');
             return notificationRef.id;
         } catch (error) {
             console.error('❌ Error creating notification:', error);
             throw error;
+        }
+    }
+
+    // Send push notification via Vercel function
+    async sendPushNotification(recipientId, message, type, metadata) {
+        try {
+            const response = await fetch('https://clara-jgn4eeu5k-ray-seals-projects.vercel.app/api/send-notification', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    recipientId,
+                    message,
+                    type,
+                    metadata
+                }),
+            });
+
+            if (response.ok) {
+                console.log('✅ Push notification sent successfully');
+            } else {
+                console.warn('⚠️ Push notification failed:', await response.text());
+            }
+        } catch (error) {
+            console.error('❌ Error sending push notification:', error);
         }
     }
 
