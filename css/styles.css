@@ -1626,17 +1626,36 @@ p {
 .user-post-item {
     background: var(--surface-color);
     border-radius: var(--border-radius);
-    padding: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
     border: 1px solid var(--border-color);
+    font-size: 0.9em;
+}
+
+.user-post-item .post-content {
+    margin-bottom: var(--spacing-xs);
+}
+
+.user-post-item .post-content p {
+    margin: 0;
+    line-height: 1.4;
+    font-size: 0.85em;
+}
+
+.user-post-item .post-image {
+    max-width: 100%;
+    max-height: 120px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-top: var(--spacing-xs);
 }
 
 .post-meta {
     display: flex;
-    gap: var(--spacing-md);
-    font-size: 0.9em;
+    gap: var(--spacing-sm);
+    font-size: 0.75em;
     color: var(--text-secondary);
-    margin-top: var(--spacing-sm);
+    margin-top: var(--spacing-xs);
 }
 
 .no-posts, .error {

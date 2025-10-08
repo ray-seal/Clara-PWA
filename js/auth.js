@@ -306,9 +306,9 @@ class AuthManager {
     async uploadProfilePicture(file) {
         if (!this.currentUser) throw new Error('Not authenticated');
         
-        const maxSize = 5 * 1024 * 1024; // 5MB
+        const maxSize = 10 * 1024 * 1024; // 10MB
         if (file.size > maxSize) {
-            throw new Error('Image must be less than 5MB');
+            throw new Error('Image must be less than 10MB');
         }
 
         if (!file.type.startsWith('image/')) {
@@ -414,9 +414,9 @@ class AuthManager {
             // Upload image if provided
             if (imageFile) {
                 console.log('📷 Uploading image...');
-                const maxSize = 5 * 1024 * 1024; // 5MB
+                const maxSize = 10 * 1024 * 1024; // 10MB
                 if (imageFile.size > maxSize) {
-                    throw new Error('Image must be less than 5MB');
+                    throw new Error('Image must be less than 10MB');
                 }
                 if (!imageFile.type.startsWith('image/')) {
                     throw new Error('Please select an image file');
