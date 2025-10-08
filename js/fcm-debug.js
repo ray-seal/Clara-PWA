@@ -63,6 +63,9 @@ export class FCMDebugPanel {
             <button onclick="fcmDebugPanel.testNotification()" style="background: #2196F3; color: white; border: none; padding: 5px 10px; border-radius: 4px; margin: 2px;">
                 Test Notification
             </button>
+            <button onclick="fcmDebugPanel.testDirectNotification()" style="background: #9C27B0; color: white; border: none; padding: 5px 10px; border-radius: 4px; margin: 2px;">
+                Direct Test
+            </button>
         `;
 
         panel.appendChild(closeBtn);
@@ -221,7 +224,24 @@ export class FCMDebugPanel {
         }
     }
 
-    // Method to show/hide panel with a key combination
+    async testDirectNotification() {
+        try {
+            // Test direct browser notification first
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('Direct Browser Test', {
+                    body: 'This bypasses FCM - if you see this, browser notifications work',
+                    icon: '/icons/icon-192x192.png',
+                    tag: 'direct-test'
+                });
+                alert('Direct browser notification sent! Check if it appeared.');
+            } else {
+                alert('Notification permission not granted or not available');
+            }
+        } catch (error) {
+            alert('Direct test failed: ' + error.message);
+            console.error('Direct test error:', error);
+        }
+    }
     setupKeyboardShortcut() {
         document.addEventListener('keydown', (e) => {
             // Press Ctrl+Shift+D (or Cmd+Shift+D on Mac) to toggle debug panel
