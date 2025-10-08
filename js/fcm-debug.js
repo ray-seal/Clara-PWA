@@ -56,6 +56,9 @@ export class FCMDebugPanel {
             <button onclick="fcmDebugPanel.requestPermission()" style="background: #4CAF50; color: white; border: none; padding: 5px 10px; border-radius: 4px; margin: 2px;">
                 Request Permissions
             </button>
+            <button onclick="fcmDebugPanel.refreshPanel()" style="background: #FF9800; color: white; border: none; padding: 5px 10px; border-radius: 4px; margin: 2px;">
+                Refresh Status
+            </button>
             <button onclick="fcmDebugPanel.testNotification()" style="background: #2196F3; color: white; border: none; padding: 5px 10px; border-radius: 4px; margin: 2px;">
                 Test Notification
             </button>
@@ -75,23 +78,56 @@ export class FCMDebugPanel {
             permission: Notification.permission,
             fcmAvailable: !!window.messaging,
             serviceWorker: 'serviceWorker' in navigator,
-            userId: window.authManager?.currentUser?.uid || null,
+            userId: null,
             fcmToken: 'Loading...',
             pushEnabled: false,
             browser: navigator.userAgent.includes('iPhone') ? 'iPhone Safari' : 
                     navigator.userAgent.includes('Android') ? 'Android' : 'Desktop'
         };
 
-        // Get FCM token from profile if user is logged in
-        if (status.userId && window.authManager) {
-            try {
-                const doc = await window.authManager.db.doc(`profiles/${status.userId}`).get();
-                const data = doc.data();
-                status.fcmToken = data?.fcmToken ? `✅ Saved (${data.fcmToken.length} chars)` : '❌ Missing';
-                status.pushEnabled = data?.pushNotificationsEnabled || false;
-            } catch (error) {
-                status.fcmToken = '❌ Error loading';
+        // Wait for auth manager and current user
+        if (window.authManager) {
+            // Wait a bit for auth state to be established
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Try multiple ways to get the current user
+            let currentUser = window.authManager.currentUser;
+            
+            if (!currentUser && window.authManager.auth) {
+                currentUser = window.authManager.auth.currentUser;
             }
+            
+            if (!currentUser) {
+                // Wait for auth state change
+                await new Promise((resolve) => {
+                    const unsubscribe = window.authManager.onAuthStateChange((user) => {
+                        currentUser = user;
+                        unsubscribe();
+                        resolve();
+                    });
+                    // Timeout after 3 seconds
+                    setTimeout(() => {
+                        unsubscribe();
+                        resolve();
+                    }, 3000);
+                });
+            }
+            
+            status.userId = currentUser?.uid || 'Auth state not ready';
+
+            // Get FCM token from profile if user is logged in
+            if (currentUser?.uid) {
+                try {
+                    const doc = await window.authManager.db.doc(`profiles/${currentUser.uid}`).get();
+                    const data = doc.data();
+                    status.fcmToken = data?.fcmToken ? `✅ Saved (${data.fcmToken.length} chars)` : '❌ Missing';
+                    status.pushEnabled = data?.pushNotificationsEnabled || false;
+                } catch (error) {
+                    status.fcmToken = '❌ Error loading: ' + error.message;
+                }
+            }
+        } else {
+            status.userId = 'AuthManager not loaded';
         }
 
         return status;
@@ -100,11 +136,15 @@ export class FCMDebugPanel {
     async requestPermission() {
         if (window.authManager) {
             try {
-                await window.authManager.requestNotificationPermission();
+                const result = await window.authManager.requestNotificationPermission();
+                alert('Permission result: ' + result);
+                await new Promise(resolve => setTimeout(resolve, 2000));
                 this.refreshPanel();
             } catch (error) {
                 alert('Permission request failed: ' + error.message);
             }
+        } else {
+            alert('AuthManager not ready. Wait a moment and try again.');
         }
     }
 
@@ -125,9 +165,9 @@ export class FCMDebugPanel {
 
     async refreshPanel() {
         if (this.panel) {
-            const status = await this.getFCMStatus();
-            // Update the content (simplified for this example)
-            location.reload(); // For now, just reload
+            this.hidePanel();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            this.showPanel();
         }
     }
 
