@@ -599,20 +599,16 @@ class ClaraApp {
     }
 
     setupPostInteractions() {
-        // Remove existing event listeners first to prevent duplicates
-        document.querySelectorAll('.like-btn').forEach(btn => {
-            const newBtn = btn.cloneNode(true);
-            btn.parentNode.replaceChild(newBtn, btn);
-        });
-        
-        // Like buttons
-        document.querySelectorAll('.like-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
+        // Like buttons - use event delegation to prevent duplicates
+        document.removeEventListener('click', this.handleLikeClick);
+        this.handleLikeClick = async (e) => {
+            if (e.target.classList.contains('like-btn')) {
                 e.preventDefault();
-                const postId = btn.getAttribute('data-post-id');
-                await this.handleLike(postId, btn);
-            });
-        });
+                const postId = e.target.getAttribute('data-post-id');
+                await this.handleLike(postId, e.target);
+            }
+        };
+        document.addEventListener('click', this.handleLikeClick);
 
         // Comment buttons
         document.querySelectorAll('.comment-btn').forEach(btn => {
@@ -1308,6 +1304,12 @@ class ClaraApp {
         try {
             console.log('👤 Loading user profile:', userId);
             
+            // Remove any existing modal first
+            const existingModal = document.getElementById('user-profile-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
             // Get user profile data
             const userProfile = await authManager.getUserProfile(userId);
             if (!userProfile) {
@@ -1384,6 +1386,12 @@ class ClaraApp {
     }
 
     // Close user profile modal
+    closeUserProfileModal() {
+        const modal = document.getElementById('user-profile-modal');
+        if (modal) {
+            modal.remove();
+        }
+    }
     closeUserProfileModal() {
         const modal = document.getElementById('user-profile-modal');
         if (modal) {
