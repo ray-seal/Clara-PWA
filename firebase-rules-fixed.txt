@@ -112,8 +112,15 @@ service cloud.firestore {
     
     // Reports - Create only, admins manage
     match /reports/{reportId} {
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.reporterId;
-      allow read, update, delete: if false; // Admin only
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.reportedBy;
+      allow read, update, delete: if request.auth != null && isAdmin();
+    }
+    
+    // Admin Actions - Admin only logging
+    match /adminActions/{actionId} {
+      allow create: if request.auth != null && isAdmin();
+      allow read: if request.auth != null && isAdmin();
+      allow update, delete: if false; // Immutable logs
     }
   }
 }

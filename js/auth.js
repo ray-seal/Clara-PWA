@@ -175,6 +175,19 @@ class AuthManager {
         return this.currentUser;
     }
 
+    // Check if current user is admin
+    async isCurrentUserAdmin() {
+        if (!this.currentUser) return false;
+        
+        try {
+            const userProfile = await this.getUserProfile();
+            return userProfile?.isAdmin === true;
+        } catch (error) {
+            console.error('❌ Error checking admin status:', error);
+            return false;
+        }
+    }
+
     // Convert Firebase error to readable message
     getReadableError(error) {
         const errorMessages = {
@@ -823,6 +836,51 @@ class AuthManager {
         }
     }
 
+    // Admin delete post with reason logging
+    async adminDeletePost(postId, reason) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            const userProfile = await this.getUserProfile();
+            if (!userProfile.isAdmin) {
+                throw new Error('Admin access required');
+            }
+
+            const postRef = doc(db, COLLECTIONS.POSTS, postId);
+            const postDoc = await getDoc(postRef);
+            
+            if (!postDoc.exists()) throw new Error('Post not found');
+            
+            // Log admin action
+            await addDoc(collection(db, 'adminActions'), {
+                adminId: this.currentUser.uid,
+                adminEmail: this.currentUser.email,
+                action: 'delete_post',
+                targetPostId: postId,
+                reason: reason,
+                timestamp: serverTimestamp()
+            });
+            
+            // Delete the post
+            await deleteDoc(postRef);
+            
+            // Delete associated comments
+            const commentsQuery = query(
+                collection(db, COLLECTIONS.COMMENTS),
+                where('postId', '==', postId)
+            );
+            const commentsSnapshot = await getDocs(commentsQuery);
+            
+            const deletePromises = commentsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+            await Promise.all(deletePromises);
+            
+            console.log('✅ Post deleted by admin with reason:', reason);
+        } catch (error) {
+            console.error('❌ Error admin deleting post:', error);
+            throw error;
+        }
+    }
+
     // Report post
     async reportPost(postId, reason) {
         if (!this.currentUser) throw new Error('Not authenticated');
@@ -832,11 +890,12 @@ class AuthManager {
                 postId: postId,
                 reportedBy: this.currentUser.uid,
                 reason: reason,
-                createdAt: new Date(),
+                createdAt: serverTimestamp(),
                 status: 'pending'
             };
 
-            await addDoc(collection(db, COLLECTIONS.REPORTS), reportData);
+            // Create the report
+            const reportRef = await addDoc(collection(db, COLLECTIONS.REPORTS), reportData);
             
             // Mark post as reported
             const postRef = doc(db, COLLECTIONS.POSTS, postId);
@@ -845,10 +904,52 @@ class AuthManager {
                 reports: arrayUnion(this.currentUser.uid)
             });
 
+            // Send notifications to all admins
+            await this.notifyAdminsOfReport(postId, reason, reportRef.id);
+
             console.log('✅ Post reported successfully');
         } catch (error) {
             console.error('❌ Error reporting post:', error);
             throw error;
+        }
+    }
+
+    // Notify all admins of a new report
+    async notifyAdminsOfReport(postId, reason, reportId) {
+        try {
+            // Get all admin users
+            const profilesQuery = query(
+                collection(db, COLLECTIONS.PROFILES),
+                where('isAdmin', '==', true)
+            );
+            
+            const adminSnapshot = await getDocs(profilesQuery);
+            
+            // Send notification to each admin
+            const notificationPromises = adminSnapshot.docs.map(async (adminDoc) => {
+                const adminId = adminDoc.id;
+                
+                // Don't notify the admin who made the report
+                if (adminId === this.currentUser.uid) return;
+                
+                return this.createNotification(
+                    adminId,
+                    'admin_report',
+                    `New report: "${reason}" - Click to review`,
+                    {
+                        postId: postId,
+                        reportId: reportId,
+                        reportReason: reason,
+                        reportedBy: this.currentUser.uid
+                    }
+                );
+            });
+
+            await Promise.all(notificationPromises.filter(Boolean));
+            console.log('✅ Admin notifications sent for report');
+        } catch (error) {
+            console.error('❌ Error notifying admins of report:', error);
+            // Don't throw - report was still created
         }
     }
 

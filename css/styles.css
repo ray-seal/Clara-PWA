@@ -2613,3 +2613,94 @@ p {
         transform: scale(1);
     }
 }
+
+/* Clickable Usernames */
+.clickable-username {
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.clickable-username:hover {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+/* User Profile Modal */
+.user-profile-content {
+    max-width: 500px;
+    width: 90%;
+}
+
+.profile-header {
+    display: flex;
+    gap: var(--spacing-lg);
+    align-items: center;
+    margin-bottom: var(--spacing-xl);
+}
+
+.profile-avatar .avatar-placeholder.large {
+    width: 80px;
+    height: 80px;
+    font-size: 2rem;
+}
+
+.profile-avatar img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.profile-info h3 {
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--primary-color);
+    font-size: var(--font-size-xl);
+}
+
+.profile-detail {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    margin: 0;
+}
+
+.profile-bio {
+    margin: var(--spacing-sm) 0 0 0;
+    font-style: italic;
+    color: var(--color-text);
+}
+
+.profile-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: var(--spacing-lg);
+    padding: var(--spacing-lg);
+    background: var(--surface-alt);
+    border-radius: var(--border-radius);
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    display: block;
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.stat-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Admin Delete Button Styling */
+.admin-delete-post {
+    color: var(--color-danger) !important;
+}
+
+.admin-delete-post:hover {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+}

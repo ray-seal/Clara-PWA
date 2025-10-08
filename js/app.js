@@ -502,7 +502,8 @@ class ClaraApp {
                 return;
             }
 
-            const postsHtml = posts.map(post => this.renderPost(post)).join('');
+            const postsPromises = posts.map(post => this.renderPost(post));
+            const postsHtml = (await Promise.all(postsPromises)).join('');
             container.innerHTML = postsHtml;
             
             // Set up post interactions
@@ -524,10 +525,11 @@ class ClaraApp {
         }
     }
 
-    renderPost(post) {
+    async renderPost(post) {
         const currentUser = authManager.getCurrentUser();
         const isOwnPost = post.uid === currentUser?.uid;
         const userLiked = post.likes?.includes(currentUser?.uid) || false;
+        const isAdmin = await authManager.isCurrentUserAdmin();
         
         const displayName = post.author?.showRealName && (post.author?.firstName || post.author?.lastName) 
             ? [post.author.firstName, post.author.lastName].filter(Boolean).join(' ')
@@ -546,7 +548,7 @@ class ClaraApp {
                             }
                         </div>
                         <div class="author-info">
-                            <h4>${displayName}</h4>
+                            <h4 class="clickable-username" data-user-id="${post.uid}" onclick="app.showUserProfile('${post.uid}')">${displayName}</h4>
                             <p class="post-time">${timeAgo}</p>
                         </div>
                     </div>
@@ -556,6 +558,7 @@ class ClaraApp {
                         </button>
                         <div class="post-menu-dropdown" id="menu-${post.id}" style="display: none;">
                             ${isOwnPost ? '<button class="menu-item delete-post" data-post-id="' + post.id + '"><span class="material-icons">delete</span> Delete Post</button>' : ''}
+                            ${isAdmin && !isOwnPost ? '<button class="menu-item admin-delete-post" data-post-id="' + post.id + '"><span class="material-icons">admin_panel_settings</span> Admin Delete</button>' : ''}
                             <button class="menu-item report-post" data-post-id="${post.id}">
                                 <span class="material-icons">flag</span> Report Post
                             </button>
@@ -635,6 +638,15 @@ class ClaraApp {
                 e.preventDefault();
                 const postId = btn.getAttribute('data-post-id');
                 await this.handleDeletePost(postId);
+            });
+        });
+
+        // Admin delete post
+        document.querySelectorAll('.admin-delete-post').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const postId = btn.getAttribute('data-post-id');
+                await this.handleAdminDeletePost(postId);
             });
         });
 
@@ -791,6 +803,27 @@ class ClaraApp {
         } catch (error) {
             console.error('❌ Error deleting post:', error);
             alert('Failed to delete post. Please try again.');
+        }
+    }
+
+    async handleAdminDeletePost(postId) {
+        const reason = prompt('Admin deletion reason (required):');
+        if (!reason) return;
+
+        if (!confirm('⚠️ ADMIN DELETE: Are you sure you want to delete this post? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            await authManager.adminDeletePost(postId, reason);
+            // Remove post from UI
+            const postCard = document.querySelector(`[data-post-id="${postId}"]`);
+            postCard.remove();
+            this.showNotification('✅ Post deleted by admin', 'success');
+            console.log('✅ Post deleted by admin');
+        } catch (error) {
+            console.error('❌ Error admin deleting post:', error);
+            this.showNotification('❌ Failed to delete post', 'error');
         }
     }
 
@@ -1207,6 +1240,88 @@ class ClaraApp {
         const dropdown = document.getElementById('notification-dropdown');
         if (dropdown) {
             dropdown.style.display = 'none';
+        }
+    }
+
+    // Show user profile modal
+    async showUserProfile(userId) {
+        try {
+            console.log('👤 Loading user profile:', userId);
+            
+            // Get user profile data
+            const userProfile = await authManager.getUserProfile(userId);
+            if (!userProfile) {
+                this.showNotification('User profile not found', 'error');
+                return;
+            }
+
+            // Create profile modal
+            const displayName = userProfile.showRealName && (userProfile.firstName || userProfile.lastName) 
+                ? [userProfile.firstName, userProfile.lastName].filter(Boolean).join(' ')
+                : userProfile.displayName || 'Anonymous';
+
+            const joinDate = userProfile.createdAt ? new Date(userProfile.createdAt.toDate()).toLocaleDateString() : 'Unknown';
+            
+            const modalHtml = `
+                <div id="user-profile-modal" class="modal-overlay" onclick="app.closeUserProfileModal()">
+                    <div class="modal-content user-profile-content" onclick="event.stopPropagation()">
+                        <div class="modal-header">
+                            <h2>User Profile</h2>
+                            <button class="close-btn" onclick="app.closeUserProfileModal()">
+                                <span class="material-icons">close</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="profile-header">
+                                <div class="profile-avatar">
+                                    ${userProfile.avatarUrl ? 
+                                        `<img src="${userProfile.avatarUrl}" alt="${displayName}">` :
+                                        `<div class="avatar-placeholder large"><span class="material-icons">person</span></div>`
+                                    }
+                                </div>
+                                <div class="profile-info">
+                                    <h3>${displayName}</h3>
+                                    <p class="profile-detail">Member since ${joinDate}</p>
+                                    ${userProfile.bio ? `<p class="profile-bio">${userProfile.bio}</p>` : ''}
+                                </div>
+                            </div>
+                            <div class="profile-stats">
+                                <div class="stat-item">
+                                    <span class="stat-number">${userProfile.points || 0}</span>
+                                    <span class="stat-label">Points</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number">${userProfile.level || 1}</span>
+                                    <span class="stat-label">Level</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number">${userProfile.stats?.postsCount || 0}</span>
+                                    <span class="stat-label">Posts</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number">${userProfile.stats?.likesReceivedCount || 0}</span>
+                                    <span class="stat-label">Likes Received</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add to DOM
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+        } catch (error) {
+            console.error('❌ Error loading user profile:', error);
+            this.showNotification('Failed to load user profile', 'error');
+        }
+    }
+
+    // Close user profile modal
+    closeUserProfileModal() {
+        const modal = document.getElementById('user-profile-modal');
+        if (modal) {
+            modal.remove();
         }
     }
 
