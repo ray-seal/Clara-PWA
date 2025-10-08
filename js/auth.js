@@ -1373,6 +1373,8 @@ class AuthManager {
 
         try {
             console.log(`🔔 Creating notification for user ${recipientId}`);
+            console.log(`👤 Current user: ${this.currentUser.uid}`);
+            console.log(`📝 Message: ${message}`);
             
             const notification = {
                 recipientId: recipientId,
