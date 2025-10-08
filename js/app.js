@@ -717,13 +717,18 @@ class ClaraApp {
                 return;
             }
 
-            const commentsHtml = comments.map(comment => {
+            const isAdmin = await authManager.isCurrentUserAdmin();
+            const currentUser = authManager.getCurrentUser();
+
+            const commentsPromises = comments.map(async comment => {
                 const displayName = comment.author?.showRealName && (comment.author?.firstName || comment.author?.lastName) 
                     ? [comment.author.firstName, comment.author.lastName].filter(Boolean).join(' ')
                     : comment.author?.displayName || 'Anonymous';
 
+                const isOwnComment = comment.uid === currentUser?.uid;
+
                 return `
-                    <div class="comment">
+                    <div class="comment" data-comment-id="${comment.id}">
                         <div class="comment-author">
                             <div class="comment-avatar">
                                 ${comment.author?.avatarUrl ? 
@@ -732,16 +737,26 @@ class ClaraApp {
                                 }
                             </div>
                             <div class="comment-content">
-                                <h5>${displayName}</h5>
+                                <h5 class="clickable-username" data-user-id="${comment.uid}" onclick="app.showUserProfile('${comment.uid}')">${displayName}</h5>
                                 <p>${this.formatPostContent(comment.content)}</p>
-                                <span class="comment-time">${this.formatTimeAgo(comment.createdAt)}</span>
+                                <div class="comment-footer">
+                                    <span class="comment-time">${this.formatTimeAgo(comment.createdAt)}</span>
+                                    ${isAdmin && !isOwnComment ? 
+                                        `<button class="admin-delete-comment btn-link" data-comment-id="${comment.id}">
+                                            <span class="material-icons">admin_panel_settings</span> Admin Delete
+                                        </button>` : ''}
+                                </div>
                             </div>
                         </div>
                     </div>
                 `;
-            }).join('');
+            });
 
+            const commentsHtml = (await Promise.all(commentsPromises)).join('');
             commentsList.innerHTML = commentsHtml;
+            
+            // Set up admin delete listeners for comments
+            this.setupCommentAdminListeners();
         } catch (error) {
             console.error('❌ Error loading comments:', error);
             commentsList.innerHTML = '<p class="error-comments">Failed to load comments.</p>';
@@ -840,6 +855,39 @@ class ClaraApp {
         } catch (error) {
             console.error('❌ Error reporting post:', error);
             alert('Failed to report post. Please try again.');
+        }
+    }
+
+    setupCommentAdminListeners() {
+        document.querySelectorAll('.admin-delete-comment').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const commentId = btn.getAttribute('data-comment-id');
+                await this.handleAdminDeleteComment(commentId);
+            });
+        });
+    }
+
+    async handleAdminDeleteComment(commentId) {
+        const reason = prompt('Admin comment deletion reason (required):');
+        if (!reason) return;
+
+        if (!confirm('⚠️ ADMIN DELETE: Are you sure you want to delete this comment? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            await authManager.adminDeleteComment(commentId, reason);
+            // Remove comment from UI
+            const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+            if (commentElement) {
+                commentElement.remove();
+            }
+            this.showNotification('✅ Comment deleted by admin', 'success');
+            console.log('✅ Comment deleted by admin');
+        } catch (error) {
+            console.error('❌ Error admin deleting comment:', error);
+            this.showNotification('❌ Failed to delete comment', 'error');
         }
     }
 

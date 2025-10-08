@@ -2697,10 +2697,42 @@ p {
 }
 
 /* Admin Delete Button Styling */
-.admin-delete-post {
+.admin-delete-post,
+.admin-delete-comment {
     color: var(--color-danger) !important;
 }
 
-.admin-delete-post:hover {
+.admin-delete-post:hover,
+.admin-delete-comment:hover {
     background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* Comment Footer Styling */
+.comment-footer {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-xs);
+}
+
+.admin-delete-comment.btn-link {
+    background: none;
+    border: none;
+    color: var(--color-danger);
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.admin-delete-comment.btn-link:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+.admin-delete-comment .material-icons {
+    font-size: 14px;
 }

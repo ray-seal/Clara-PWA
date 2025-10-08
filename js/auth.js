@@ -851,15 +851,37 @@ class AuthManager {
             
             if (!postDoc.exists()) throw new Error('Post not found');
             
+            const postData = postDoc.data();
+            const postAuthorId = postData.uid;
+            
             // Log admin action
             await addDoc(collection(db, 'adminActions'), {
                 adminId: this.currentUser.uid,
                 adminEmail: this.currentUser.email,
                 action: 'delete_post',
                 targetPostId: postId,
+                targetUserId: postAuthorId,
                 reason: reason,
                 timestamp: serverTimestamp()
             });
+            
+            // Notify the post author (anonymously)
+            if (postAuthorId !== this.currentUser.uid) {
+                try {
+                    await this.createNotification(
+                        postAuthorId,
+                        'admin_action',
+                        `Your post was removed by a moderator. Reason: ${reason}`,
+                        {
+                            action: 'post_deleted',
+                            reason: reason,
+                            // Note: No admin info or reporter info shared
+                        }
+                    );
+                } catch (notifError) {
+                    console.warn('⚠️ Failed to notify user of admin deletion:', notifError);
+                }
+            }
             
             // Delete the post
             await deleteDoc(postRef);
@@ -877,6 +899,71 @@ class AuthManager {
             console.log('✅ Post deleted by admin with reason:', reason);
         } catch (error) {
             console.error('❌ Error admin deleting post:', error);
+            throw error;
+        }
+    }
+
+    // Admin delete comment with reason and user notification
+    async adminDeleteComment(commentId, reason) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            const userProfile = await this.getUserProfile();
+            if (!userProfile.isAdmin) {
+                throw new Error('Admin access required');
+            }
+
+            const commentRef = doc(db, COLLECTIONS.COMMENTS, commentId);
+            const commentDoc = await getDoc(commentRef);
+            
+            if (!commentDoc.exists()) throw new Error('Comment not found');
+            
+            const commentData = commentDoc.data();
+            const commentAuthorId = commentData.uid;
+            
+            // Log admin action
+            await addDoc(collection(db, 'adminActions'), {
+                adminId: this.currentUser.uid,
+                adminEmail: this.currentUser.email,
+                action: 'delete_comment',
+                targetCommentId: commentId,
+                targetUserId: commentAuthorId,
+                postId: commentData.postId,
+                reason: reason,
+                timestamp: serverTimestamp()
+            });
+            
+            // Notify the comment author (anonymously)
+            if (commentAuthorId !== this.currentUser.uid) {
+                try {
+                    await this.createNotification(
+                        commentAuthorId,
+                        'admin_action',
+                        `Your comment was removed by a moderator. Reason: ${reason}`,
+                        {
+                            action: 'comment_deleted',
+                            reason: reason,
+                            postId: commentData.postId
+                            // Note: No admin info or reporter info shared
+                        }
+                    );
+                } catch (notifError) {
+                    console.warn('⚠️ Failed to notify user of admin comment deletion:', notifError);
+                }
+            }
+            
+            // Delete the comment
+            await deleteDoc(commentRef);
+            
+            // Update post comment count
+            const postRef = doc(db, COLLECTIONS.POSTS, commentData.postId);
+            await updateDoc(postRef, {
+                commentsCount: increment(-1)
+            });
+            
+            console.log('✅ Comment deleted by admin with reason:', reason);
+        } catch (error) {
+            console.error('❌ Error admin deleting comment:', error);
             throw error;
         }
     }
