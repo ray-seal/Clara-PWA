@@ -1391,6 +1391,22 @@ class AuthManager {
             // Also send push notification via Vercel function
             try {
                 console.log('🚀 Sending push notification to FCM server...');
+                console.log('🔍 Checking recipient profile first...');
+                
+                // Quick check if recipient exists before calling server
+                const recipientProfile = await getDoc(doc(db, COLLECTIONS.PROFILES, recipientId));
+                if (!recipientProfile.exists()) {
+                    console.warn('⚠️ Recipient profile not found in Firestore:', recipientId);
+                    console.log('📋 Available collections might not include this user');
+                } else {
+                    const profileData = recipientProfile.data();
+                    console.log('👤 Recipient profile found:', {
+                        hasToken: !!profileData.fcmToken,
+                        tokenLength: profileData.fcmToken?.length || 0,
+                        pushEnabled: profileData.pushNotificationsEnabled
+                    });
+                }
+                
                 const pushResult = await this.sendPushNotification(recipientId, message, type, metadata);
                 console.log('📊 Push notification result:', pushResult);
             } catch (pushError) {

@@ -72,14 +72,39 @@ export default async function handler(req, res) {
     // Step 2: Get user's FCM token from Firestore REST API
     const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/databases/(default)/documents/profiles/${recipientId}`;
     console.log('📋 Fetching user profile for FCM token...');
+    console.log('🔗 Firestore URL:', firestoreUrl);
     
     const userResponse = await fetch(firestoreUrl, {
       headers: { 'Authorization': `Bearer ${access_token}` }
     });
 
+    console.log('📊 User profile response status:', userResponse.status);
+
     if (!userResponse.ok) {
+      const errorText = await userResponse.text();
       console.error('❌ User profile not found:', recipientId);
-      return res.status(404).json({ error: 'User not found' });
+      console.error('📄 Error response:', errorText);
+      
+      // Let's also try to list all profiles to see what exists
+      const listUrl = `https://firestore.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/databases/(default)/documents/profiles`;
+      try {
+        const listResponse = await fetch(listUrl, {
+          headers: { 'Authorization': `Bearer ${access_token}` }
+        });
+        if (listResponse.ok) {
+          const listData = await listResponse.json();
+          console.log('📋 Available profiles:', listData.documents?.map(doc => doc.name.split('/').pop()) || 'None found');
+        }
+      } catch (e) {
+        console.log('Could not list profiles:', e.message);
+      }
+      
+      return res.status(404).json({ 
+        error: 'User not found',
+        recipientId,
+        firestoreUrl,
+        errorDetails: errorText
+      });
     }
 
     const userData = await userResponse.json();
