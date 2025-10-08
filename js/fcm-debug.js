@@ -48,6 +48,7 @@ export class FCMDebugPanel {
             <div><strong>Permission:</strong> ${status.permission}</div>
             <div><strong>FCM Available:</strong> ${status.fcmAvailable ? '✅' : '❌'}</div>
             <div><strong>Service Worker:</strong> ${status.serviceWorker ? '✅' : '❌'}</div>
+            <div><strong>AuthManager:</strong> ${window.authManager ? (window.authManager.initialized ? '✅ Ready' : '⏳ Loading') : '❌ Missing'}</div>
             <div><strong>User ID:</strong> ${status.userId || 'Not logged in'}</div>
             <div><strong>FCM Token:</strong> ${status.fcmToken}</div>
             <div><strong>Push Enabled:</strong> ${status.pushEnabled ? '✅' : '❌'}</div>
@@ -134,17 +135,39 @@ export class FCMDebugPanel {
     }
 
     async requestPermission() {
-        if (window.authManager) {
-            try {
-                const result = await window.authManager.requestNotificationPermission();
-                alert('Permission result: ' + result);
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                this.refreshPanel();
-            } catch (error) {
-                alert('Permission request failed: ' + error.message);
-            }
-        } else {
-            alert('AuthManager not ready. Wait a moment and try again.');
+        // Better AuthManager detection
+        const maxWait = 10000; // 10 seconds
+        const startTime = Date.now();
+        
+        while (!window.authManager && (Date.now() - startTime) < maxWait) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        if (!window.authManager) {
+            alert('AuthManager failed to load. Try refreshing the page.');
+            return;
+        }
+        
+        // Wait for auth manager to be fully initialized
+        let attempts = 0;
+        while (!window.authManager.initialized && attempts < 20) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            attempts++;
+        }
+        
+        if (!window.authManager.initialized) {
+            alert('AuthManager not initialized. Try refreshing the page.');
+            return;
+        }
+        
+        try {
+            const result = await window.authManager.requestNotificationPermission();
+            alert('Permission result: ' + result);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            this.refreshPanel();
+        } catch (error) {
+            alert('Permission request failed: ' + error.message);
+            console.error('Permission error:', error);
         }
     }
 

@@ -338,8 +338,13 @@
     ">🔧</button>
 
     <!-- Scripts -->
-    <script type="module" src="js/fcm-debug.js"></script>
     <script type="module" src="js/app.js"></script>
+    <script type="module">
+        // Load FCM debug after main app
+        import('./js/fcm-debug.js').then(() => {
+            console.log('FCM debug panel loaded');
+        });
+    </script>
     
     <!-- Service Worker Registration -->
     <script>

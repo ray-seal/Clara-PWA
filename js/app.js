@@ -2875,6 +2875,10 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('📱 DOM loaded, initializing Clara app...');
     window.claraApp = new ClaraApp();
     window.app = window.claraApp; // Make available as 'app' for convenience
+    
+    // Expose authManager globally for debugging
+    window.authManager = authManager;
+    
     window.claraApp.initialize();
 });
 
