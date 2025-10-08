@@ -1429,7 +1429,10 @@ class ClaraApp {
 
             let postsHtml = '';
             for (const post of userPosts) {
-                const timeAgo = this.getTimeAgo(post.createdAt);
+                // Simple date formatting to avoid context issues
+                const date = post.createdAt?.toDate ? post.createdAt.toDate() : new Date(post.createdAt);
+                const timeAgo = date.toLocaleDateString();
+                
                 postsHtml += `
                     <div class="user-post-item">
                         <div class="post-content">
