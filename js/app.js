@@ -900,8 +900,8 @@ class ClaraApp {
                     <h3>Stay Connected</h3>
                     <p>Get notified when someone likes or comments on your posts. You can change this anytime in your browser settings.</p>
                     <div class="push-prompt-buttons">
-                        <button class="btn btn-secondary" onclick="app.dismissPushPrompt()">Not Now</button>
-                        <button class="btn btn-primary" onclick="app.enablePushNotifications()">Enable Notifications</button>
+                        <button id="dismiss-push-btn" class="btn btn-secondary">Not Now</button>
+                        <button id="enable-push-btn" class="btn btn-primary">Enable Notifications</button>
                     </div>
                 </div>
             </div>
@@ -909,6 +909,15 @@ class ClaraApp {
 
         // Add to DOM
         document.body.insertAdjacentHTML('beforeend', promptHtml);
+
+        // Add event listeners
+        document.getElementById('dismiss-push-btn')?.addEventListener('click', () => {
+            this.dismissPushPrompt();
+        });
+
+        document.getElementById('enable-push-btn')?.addEventListener('click', () => {
+            this.enablePushNotifications();
+        });
     }
 
     async enablePushNotifications() {
@@ -2581,6 +2590,7 @@ class ClaraApp {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('📱 DOM loaded, initializing Clara app...');
     window.claraApp = new ClaraApp();
+    window.app = window.claraApp; // Make available as 'app' for convenience
     window.claraApp.initialize();
 });
 
