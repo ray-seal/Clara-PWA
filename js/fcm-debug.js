@@ -119,12 +119,21 @@ export class FCMDebugPanel {
             // Get FCM token from profile if user is logged in
             if (currentUser?.uid) {
                 try {
-                    const doc = await window.authManager.db.doc(`profiles/${currentUser.uid}`).get();
-                    const data = doc.data();
-                    status.fcmToken = data?.fcmToken ? `✅ Saved (${data.fcmToken.length} chars)` : '❌ Missing';
-                    status.pushEnabled = data?.pushNotificationsEnabled || false;
+                    // Import the db directly since authManager doesn't expose it
+                    const { db } = await import('./config.js');
+                    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.3.0/firebase-firestore.js');
+                    
+                    const userDoc = await getDoc(doc(db, 'profiles', currentUser.uid));
+                    if (userDoc.exists()) {
+                        const data = userDoc.data();
+                        status.fcmToken = data?.fcmToken ? `✅ Saved (${data.fcmToken.length} chars)` : '❌ Missing';
+                        status.pushEnabled = data?.pushNotificationsEnabled || false;
+                    } else {
+                        status.fcmToken = '❌ Profile not found';
+                    }
                 } catch (error) {
                     status.fcmToken = '❌ Error loading: ' + error.message;
+                    console.error('FCM token load error:', error);
                 }
             }
         } else {
@@ -177,12 +186,16 @@ export class FCMDebugPanel {
                 await window.authManager.createNotification(
                     window.authManager.currentUser.uid,
                     'test',
-                    'Test notification from debug panel'
+                    'Test notification from debug panel',
+                    { source: 'debug_panel' }
                 );
                 alert('Test notification sent!');
             } catch (error) {
                 alert('Test failed: ' + error.message);
+                console.error('Test notification error:', error);
             }
+        } else {
+            alert('Not logged in or AuthManager not ready');
         }
     }
 
