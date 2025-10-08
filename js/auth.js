@@ -1405,7 +1405,7 @@ class AuthManager {
     // Send push notification via Vercel function
     async sendPushNotification(recipientId, message, type, metadata) {
         try {
-            const response = await fetch('https://clara-pwa.vercel.app/api/send-notification-simple', {
+            const response = await fetch('https://clara-pwa.vercel.app/api/send-notification-v2', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
