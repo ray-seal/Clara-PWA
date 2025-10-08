@@ -599,16 +599,26 @@ class ClaraApp {
     }
 
     setupPostInteractions() {
-        // Like buttons - use event delegation to prevent duplicates
-        document.removeEventListener('click', this.handleLikeClick);
-        this.handleLikeClick = async (e) => {
-            if (e.target.classList.contains('like-btn')) {
+        // Like buttons - use data attribute to prevent duplicates
+        document.querySelectorAll('.like-btn:not([data-listener-added])').forEach(btn => {
+            btn.setAttribute('data-listener-added', 'true');
+            btn.addEventListener('click', async (e) => {
                 e.preventDefault();
-                const postId = e.target.getAttribute('data-post-id');
-                await this.handleLike(postId, e.target);
-            }
-        };
-        document.addEventListener('click', this.handleLikeClick);
+                e.stopPropagation();
+                
+                // Prevent rapid clicks
+                if (btn.disabled) return;
+                btn.disabled = true;
+                
+                const postId = btn.getAttribute('data-post-id');
+                await this.handleLike(postId, btn);
+                
+                // Re-enable after a short delay
+                setTimeout(() => {
+                    btn.disabled = false;
+                }, 1000);
+            });
+        });
 
         // Comment buttons
         document.querySelectorAll('.comment-btn').forEach(btn => {
@@ -1304,18 +1314,139 @@ class ClaraApp {
         try {
             console.log('👤 Loading user profile:', userId);
             
-            // Remove any existing modal first
-            const existingModal = document.getElementById('user-profile-modal');
-            if (existingModal) {
-                existingModal.remove();
-            }
+            // Hide main content and show profile page
+            document.getElementById('main-content').style.display = 'none';
+            document.getElementById('bottom-nav').style.display = 'none';
             
             // Get user profile data
             const userProfile = await authManager.getUserProfile(userId);
             if (!userProfile) {
                 this.showNotification('User profile not found', 'error');
+                this.closeUserProfile();
                 return;
             }
+
+            // Create profile page
+            const displayName = userProfile.showRealName && (userProfile.firstName || userProfile.lastName) 
+                ? [userProfile.firstName, userProfile.lastName].filter(Boolean).join(' ')
+                : userProfile.displayName || 'Anonymous';
+
+            const joinDate = userProfile.createdAt ? new Date(userProfile.createdAt.toDate()).toLocaleDateString() : 'Unknown';
+            
+            const profilePageHtml = `
+                <div id="user-profile-page" class="page-content">
+                    <div class="profile-header">
+                        <button onclick="app.closeUserProfile()" class="back-btn">
+                            <i class="material-icons">arrow_back</i> Back
+                        </button>
+                        <h2>User Profile</h2>
+                    </div>
+                    
+                    <div class="profile-content">
+                        <div class="profile-main">
+                            <div class="profile-avatar">
+                                ${userProfile.photoURL ? 
+                                    `<img src="${userProfile.photoURL}" alt="Profile" class="avatar-large">` : 
+                                    `<div class="avatar-placeholder-large">${displayName.charAt(0).toUpperCase()}</div>`
+                                }
+                            </div>
+                            <div class="profile-info">
+                                <h3>${displayName}</h3>
+                                <p class="profile-detail">Member since ${joinDate}</p>
+                                ${userProfile.bio ? `<p class="profile-bio">${userProfile.bio}</p>` : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="profile-stats">
+                            <div class="stat-item">
+                                <span class="stat-number">${userProfile.points || 0}</span>
+                                <span class="stat-label">Points</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number">${userProfile.level || 1}</span>
+                                <span class="stat-label">Level</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number">${userProfile.stats?.postsCount || 0}</span>
+                                <span class="stat-label">Posts</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number">${userProfile.stats?.likesReceivedCount || 0}</span>
+                                <span class="stat-label">Likes Received</span>
+                            </div>
+                        </div>
+                        
+                        <div class="profile-recent-activity">
+                            <h4>Recent Activity</h4>
+                            <div id="user-posts-container">
+                                <p>Loading posts...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add to DOM
+            document.body.insertAdjacentHTML('beforeend', profilePageHtml);
+            
+            // Load user's recent posts
+            this.loadUserPosts(userId);
+            
+        } catch (error) {
+            console.error('❌ Error loading user profile:', error);
+            this.showNotification('Failed to load user profile', 'error');
+        }
+    }
+
+    // Close user profile page
+    closeUserProfile() {
+        const profilePage = document.getElementById('user-profile-page');
+        if (profilePage) {
+            profilePage.remove();
+        }
+        
+        // Show main content again
+        document.getElementById('main-content').style.display = 'block';
+        document.getElementById('bottom-nav').style.display = 'flex';
+    }
+
+    // Load user's posts for their profile
+    async loadUserPosts(userId) {
+        try {
+            const userPosts = await authManager.getUserPosts(userId, 10); // Get last 10 posts
+            const container = document.getElementById('user-posts-container');
+            
+            if (userPosts.length === 0) {
+                container.innerHTML = '<p class="no-posts">No posts yet</p>';
+                return;
+            }
+
+            let postsHtml = '';
+            for (const post of userPosts) {
+                const timeAgo = this.getTimeAgo(post.createdAt);
+                postsHtml += `
+                    <div class="user-post-item">
+                        <div class="post-content">
+                            <p>${post.content}</p>
+                            ${post.imageUrl ? `<img src="${post.imageUrl}" alt="Post image" class="post-image">` : ''}
+                        </div>
+                        <div class="post-meta">
+                            <span class="post-time">${timeAgo}</span>
+                            <span class="post-likes">${post.likesCount || 0} likes</span>
+                            <span class="post-comments">${post.commentsCount || 0} comments</span>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = postsHtml;
+            
+        } catch (error) {
+            console.error('❌ Error loading user posts:', error);
+            const container = document.getElementById('user-posts-container');
+            container.innerHTML = '<p class="error">Failed to load posts</p>';
+        }
+    }
 
             // Create profile modal
             const displayName = userProfile.showRealName && (userProfile.firstName || userProfile.lastName) 

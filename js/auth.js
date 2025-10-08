@@ -1796,6 +1796,29 @@ class AuthManager {
         });
         return supported;
     }
+
+    // Get user's posts for their profile page
+    async getUserPosts(userId, limitCount = 10) {
+        try {
+            console.log('📋 Fetching user posts:', userId);
+            
+            const postsQuery = query(
+                collection(db, COLLECTIONS.POSTS),
+                where('uid', '==', userId),
+                orderBy('createdAt', 'desc'),
+                limit(limitCount)
+            );
+
+            const snapshot = await getDocs(postsQuery);
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+        } catch (error) {
+            console.error('❌ Error fetching user posts:', error);
+            return [];
+        }
+    }
 }
 
 // Expose messaging for debugging
