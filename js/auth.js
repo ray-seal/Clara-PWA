@@ -1405,7 +1405,7 @@ class AuthManager {
     // Send push notification via Vercel function
     async sendPushNotification(recipientId, message, type, metadata) {
         try {
-            const response = await fetch('https://clara-pwa.vercel.app/api/debug-user-profile', {
+            const response = await fetch('https://clara-pwa.vercel.app/api/send-notification-rest', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1419,7 +1419,9 @@ class AuthManager {
             });
 
             if (response.ok) {
+                const result = await response.json();
                 console.log('✅ Push notification sent successfully');
+                console.log('📊 Debug info:', result);
             } else {
                 console.warn('⚠️ Push notification failed:', await response.text());
             }

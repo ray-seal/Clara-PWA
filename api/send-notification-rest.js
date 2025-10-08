@@ -74,15 +74,27 @@ export default async function handler(req, res) {
 
     if (!fcmToken) {
       return res.status(200).json({ 
-        message: 'No FCM token for user',
-        recipientId 
+        success: false,
+        reason: 'no_fcm_token',
+        message: 'No FCM token for user - notifications not enabled',
+        recipientId,
+        userData: {
+          hasToken: false,
+          pushEnabled: userData.fields?.pushNotificationsEnabled?.booleanValue
+        }
       });
     }
 
     if (pushEnabled === false) {
       return res.status(200).json({ 
-        message: 'Push notifications disabled',
-        recipientId 
+        success: false,
+        reason: 'notifications_disabled',
+        message: 'Push notifications disabled for user',
+        recipientId,
+        userData: {
+          hasToken: true,
+          pushEnabled: false
+        }
       });
     }
 
@@ -132,7 +144,16 @@ export default async function handler(req, res) {
       success: true,
       messageId: fcmResult.name,
       recipientId,
-      approach: 'Firebase REST API'
+      approach: 'Firebase REST API',
+      userData: {
+        hasToken: true,
+        pushEnabled: pushEnabled !== false,
+        tokenLength: fcmToken.length
+      },
+      fcmResponse: {
+        messageId: fcmResult.name,
+        timestamp: new Date().toISOString()
+      }
     });
 
   } catch (error) {
