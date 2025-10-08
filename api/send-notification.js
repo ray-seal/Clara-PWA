@@ -3,26 +3,12 @@
 
 import admin from 'firebase-admin';
 
-// Initialize Firebase Admin SDK
-if (!admin.apps.length) {
-  try {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      }),
-    });
-    console.log('Firebase Admin initialized successfully');
-  } catch (error) {
-    console.error('Firebase Admin initialization error:', error);
-  }
-}
+// Note: Firebase Admin is initialized inside the handler function
 
 export default async function handler(req, res) {
   // Add comprehensive CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400');
   
@@ -36,6 +22,15 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Enhanced environment variable debugging
+    const envCheck = {
+      FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID ? 'SET' : 'MISSING',
+      FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL ? 'SET' : 'MISSING', 
+      FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY ? 'SET' : 'MISSING'
+    };
+    
+    console.log('Environment check:', envCheck);
+    
     // Check if required environment variables exist
     const requiredEnvs = ['FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY'];
     const missingEnvs = requiredEnvs.filter(env => !process.env[env]);
@@ -44,15 +39,47 @@ export default async function handler(req, res) {
       console.error('Missing environment variables:', missingEnvs);
       return res.status(500).json({ 
         error: 'Server configuration error',
-        details: `Missing: ${missingEnvs.join(', ')}`
+        details: `Missing: ${missingEnvs.join(', ')}`,
+        envCheck
       });
     }
     const { recipientId, message, type, metadata } = req.body;
 
+    console.log('Processing notification for recipient:', recipientId);
+
+    // Initialize Firebase Admin if not already done
+    if (!admin.apps.length) {
+      try {
+        admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+          }),
+        });
+        console.log('Firebase Admin initialized successfully');
+      } catch (initError) {
+        console.error('Firebase Admin initialization error:', initError);
+        return res.status(500).json({ 
+          error: 'Firebase initialization failed',
+          details: initError.message 
+        });
+      }
+    }
+
     // Get recipient's FCM token
-    const userDoc = await admin.firestore()
-      .doc(`profiles/${recipientId}`)
-      .get();
+    let userDoc;
+    try {
+      userDoc = await admin.firestore()
+        .doc(`profiles/${recipientId}`)
+        .get();
+    } catch (firestoreError) {
+      console.error('Firestore error:', firestoreError);
+      return res.status(500).json({ 
+        error: 'Database error',
+        details: firestoreError.message 
+      });
+    }
 
     if (!userDoc.exists) {
       return res.status(404).json({ error: 'User not found' });
