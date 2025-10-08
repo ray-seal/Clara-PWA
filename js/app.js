@@ -1104,6 +1104,7 @@ class ClaraApp {
         const senderName = this.getDisplayName(notification.sender);
         const timeAgo = this.formatTimeAgo(notification.createdAt);
         const isUnread = !notification.read;
+        const postId = notification.metadata?.postId;
         
         // Determine icon based on notification type
         let icon = 'notifications';
@@ -1122,7 +1123,10 @@ class ClaraApp {
         }
 
         return `
-            <div class="notification-item ${isUnread ? 'unread' : ''}" data-notification-id="${notification.id}">
+            <div class="notification-item ${isUnread ? 'unread' : ''} ${postId ? 'clickable' : ''}" 
+                 data-notification-id="${notification.id}" 
+                 data-post-id="${postId || ''}"
+                 onclick="app.handleNotificationClick('${notification.id}', '${postId || ''}')">
                 <div class="notification-content">
                     <div class="notification-icon">
                         <span class="material-icons">${icon}</span>
@@ -1131,9 +1135,79 @@ class ClaraApp {
                         <p class="notification-message">${notification.message}</p>
                         <span class="notification-time">${timeAgo}</span>
                     </div>
+                    ${postId ? '<div class="notification-arrow"><span class="material-icons">chevron_right</span></div>' : ''}
                 </div>
             </div>
         `;
+    }
+
+    // Handle notification click to navigate to post
+    async handleNotificationClick(notificationId, postId) {
+        try {
+            // Mark notification as read
+            await authManager.markNotificationAsRead(notificationId);
+            
+            // Close notification dropdown
+            this.hideNotificationDropdown();
+            
+            // Navigate to post if postId exists
+            if (postId) {
+                console.log(`📍 Navigating to post: ${postId}`);
+                
+                // Switch to feed tab
+                this.showTab('feed');
+                
+                // Scroll to and highlight the specific post
+                await this.scrollToPost(postId);
+            }
+            
+            // Update notification badge
+            this.updateNotificationBadge();
+            
+        } catch (error) {
+            console.error('❌ Error handling notification click:', error);
+        }
+    }
+
+    // Scroll to and highlight a specific post
+    async scrollToPost(postId) {
+        try {
+            // Wait a moment for the feed to load
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const postElement = document.querySelector(`[data-post-id="${postId}"]`);
+            
+            if (postElement) {
+                // Scroll to the post
+                postElement.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+                
+                // Add highlight effect
+                postElement.classList.add('highlighted-post');
+                
+                // Remove highlight after 3 seconds
+                setTimeout(() => {
+                    postElement.classList.remove('highlighted-post');
+                }, 3000);
+                
+                console.log('✅ Scrolled to post:', postId);
+            } else {
+                console.warn('⚠️ Post not found in current view:', postId);
+                this.showNotification('Post not found in current view. You may need to refresh.', 'warning');
+            }
+        } catch (error) {
+            console.error('❌ Error scrolling to post:', error);
+        }
+    }
+
+    // Hide notification dropdown
+    hideNotificationDropdown() {
+        const dropdown = document.getElementById('notification-dropdown');
+        if (dropdown) {
+            dropdown.style.display = 'none';
+        }
     }
 
     getDisplayName(userProfile) {

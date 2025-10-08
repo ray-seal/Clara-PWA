@@ -403,6 +403,27 @@ p {
     align-items: flex-start;
 }
 
+.notification-item.clickable {
+    cursor: pointer;
+}
+
+.notification-item.clickable:hover {
+    background-color: rgba(107, 115, 255, 0.1);
+    transform: translateX(2px);
+}
+
+.notification-arrow {
+    flex-shrink: 0;
+    color: var(--color-text-secondary);
+    opacity: 0.7;
+    transition: all 0.2s ease;
+}
+
+.notification-item.clickable:hover .notification-arrow {
+    opacity: 1;
+    transform: translateX(2px);
+}
+
 .notification-icon {
     flex-shrink: 0;
     width: 32px;
@@ -2570,5 +2591,25 @@ p {
     
     .push-prompt-buttons .btn {
         max-width: none;
+    }
+}
+
+/* Highlighted Post Animation */
+.highlighted-post {
+    animation: highlightPost 3s ease-in-out;
+    border: 2px solid var(--primary-color) !important;
+}
+
+@keyframes highlightPost {
+    0% {
+        background-color: rgba(107, 115, 255, 0.2);
+        transform: scale(1.02);
+    }
+    50% {
+        background-color: rgba(107, 115, 255, 0.1);
+    }
+    100% {
+        background-color: transparent;
+        transform: scale(1);
     }
 }
