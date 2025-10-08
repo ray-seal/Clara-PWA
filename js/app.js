@@ -79,6 +79,11 @@ class ClaraApp {
             this.handleLogout();
         });
 
+        // Notifications button
+        document.getElementById('notifications-btn')?.addEventListener('click', () => {
+            this.toggleNotificationDropdown();
+        });
+
         // App title click - navigate to feed
         document.getElementById('app-title')?.addEventListener('click', () => {
             this.switchTab('feed');
@@ -202,6 +207,9 @@ class ClaraApp {
         // Ensure we're on the feed tab and load it immediately
         this.currentTab = 'feed';
         this.switchTab('feed');
+
+        // Initialize notifications
+        this.initializeNotifications();
 
         console.log('🏠 Main app shown and feed loaded');
     }
@@ -825,6 +833,310 @@ class ClaraApp {
         if (hours > 0) return `${hours}h ago`;
         if (minutes > 0) return `${minutes}m ago`;
         return 'Just now';
+    }
+
+    // =====================================================
+    // NOTIFICATION SYSTEM
+    // =====================================================
+
+    async initializeNotifications() {
+        console.log('🔔 Initializing notification system...');
+        
+        try {
+            // Subscribe to real-time notifications
+            this.notificationUnsubscriber = authManager.subscribeToNotifications((notifications) => {
+                this.updateNotificationBadge(notifications);
+            });
+            
+            // Set up notification dropdown event listeners
+            this.setupNotificationEvents();
+            
+            // Setup push notifications
+            await this.setupPushNotifications();
+            
+            console.log('✅ Notification system initialized');
+        } catch (error) {
+            console.error('❌ Error initializing notifications:', error);
+        }
+    }
+
+    async setupPushNotifications() {
+        try {
+            // Check if push notifications are supported
+            if (!authManager.isPushNotificationSupported()) {
+                console.log('⚠️ Push notifications not supported in this browser');
+                return;
+            }
+
+            // Setup foreground message listener
+            authManager.setupForegroundMessageListener();
+
+            // Show push notification permission prompt after a short delay
+            setTimeout(() => {
+                this.showPushNotificationPrompt();
+            }, 3000); // 3 seconds after app loads
+
+        } catch (error) {
+            console.error('❌ Error setting up push notifications:', error);
+        }
+    }
+
+    showPushNotificationPrompt() {
+        // Check if user already granted or denied permission
+        if (Notification.permission !== 'default') {
+            console.log('🔔 Notification permission already set:', Notification.permission);
+            if (Notification.permission === 'granted') {
+                // Silently request FCM token if permission already granted
+                authManager.requestNotificationPermission();
+            }
+            return;
+        }
+
+        // Create and show push notification prompt
+        const promptHtml = `
+            <div id="push-notification-prompt" class="push-notification-prompt">
+                <div class="push-prompt-content">
+                    <div class="push-prompt-icon">🔔</div>
+                    <h3>Stay Connected</h3>
+                    <p>Get notified when someone likes or comments on your posts. You can change this anytime in your browser settings.</p>
+                    <div class="push-prompt-buttons">
+                        <button class="btn btn-secondary" onclick="app.dismissPushPrompt()">Not Now</button>
+                        <button class="btn btn-primary" onclick="app.enablePushNotifications()">Enable Notifications</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add to DOM
+        document.body.insertAdjacentHTML('beforeend', promptHtml);
+    }
+
+    async enablePushNotifications() {
+        try {
+            const token = await authManager.requestNotificationPermission();
+            if (token) {
+                this.showNotification('✅ Push notifications enabled! You\'ll now receive alerts for likes and comments.', 'success');
+            } else {
+                this.showNotification('❌ Could not enable push notifications. Please check your browser settings.', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Error enabling push notifications:', error);
+            this.showNotification('❌ Error enabling push notifications.', 'error');
+        }
+        this.dismissPushPrompt();
+    }
+
+    dismissPushPrompt() {
+        const prompt = document.getElementById('push-notification-prompt');
+        if (prompt) {
+            prompt.remove();
+        }
+    }
+
+    setupNotificationEvents() {
+        // Mark all read button
+        document.getElementById('mark-all-read')?.addEventListener('click', async () => {
+            try {
+                await authManager.markAllNotificationsRead();
+                this.loadNotifications();
+            } catch (error) {
+                console.error('❌ Error marking all notifications as read:', error);
+            }
+        });
+
+        // Clear all button
+        document.getElementById('clear-all-notifications')?.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to clear all notifications? This action cannot be undone.')) {
+                try {
+                    await authManager.clearAllNotifications();
+                    this.hideNotificationDropdown();
+                } catch (error) {
+                    console.error('❌ Error clearing all notifications:', error);
+                }
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('notification-dropdown');
+            const button = document.getElementById('notifications-btn');
+            
+            if (dropdown && !dropdown.contains(e.target) && !button.contains(e.target)) {
+                this.hideNotificationDropdown();
+            }
+        });
+    }
+
+    updateNotificationBadge(notifications) {
+        const badge = document.getElementById('notification-badge');
+        if (!badge) return;
+
+        const unreadCount = notifications.filter(n => !n.read).length;
+        
+        if (unreadCount === 0) {
+            badge.style.display = 'none';
+        } else {
+            badge.style.display = 'flex';
+            badge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
+        }
+    }
+
+    toggleNotificationDropdown() {
+        const dropdown = document.getElementById('notification-dropdown');
+        if (!dropdown) return;
+
+        if (dropdown.style.display === 'none' || !dropdown.style.display) {
+            this.showNotificationDropdown();
+        } else {
+            this.hideNotificationDropdown();
+        }
+    }
+
+    async showNotificationDropdown() {
+        const dropdown = document.getElementById('notification-dropdown');
+        if (!dropdown) return;
+
+        dropdown.style.display = 'block';
+        await this.loadNotifications();
+    }
+
+    hideNotificationDropdown() {
+        const dropdown = document.getElementById('notification-dropdown');
+        if (dropdown) {
+            dropdown.style.display = 'none';
+        }
+    }
+
+    async loadNotifications() {
+        const container = document.getElementById('notifications-list');
+        if (!container) return;
+
+        // Show loading state
+        container.innerHTML = `
+            <div class="loading-notifications">
+                <span class="material-icons spinning">refresh</span>
+                <p>Loading notifications...</p>
+            </div>
+        `;
+
+        try {
+            const notifications = await authManager.getNotifications();
+            
+            if (notifications.length === 0) {
+                container.innerHTML = `
+                    <div class="no-notifications">
+                        <span class="material-icons">notifications_none</span>
+                        <h4>No notifications yet</h4>
+                        <p>You'll see notifications here when people interact with your posts.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const notificationsHtml = notifications.map(notification => this.renderNotification(notification)).join('');
+            container.innerHTML = notificationsHtml;
+
+            // Set up click listeners for individual notifications
+            container.querySelectorAll('.notification-item').forEach(item => {
+                item.addEventListener('click', async (e) => {
+                    const notificationId = item.dataset.notificationId;
+                    const isUnread = item.classList.contains('unread');
+                    
+                    if (isUnread) {
+                        try {
+                            await authManager.markNotificationRead(notificationId);
+                            item.classList.remove('unread');
+                        } catch (error) {
+                            console.error('❌ Error marking notification as read:', error);
+                        }
+                    }
+                    
+                    // Navigate to the relevant content if applicable
+                    this.handleNotificationClick(notification);
+                });
+            });
+
+        } catch (error) {
+            console.error('❌ Error loading notifications:', error);
+            container.innerHTML = `
+                <div class="error-loading">
+                    <h4>Unable to Load Notifications</h4>
+                    <p>Please try again later.</p>
+                    <button class="btn btn-primary" onclick="window.claraApp.loadNotifications()">
+                        <span class="material-icons">refresh</span>
+                        Try Again
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    renderNotification(notification) {
+        const senderName = this.getDisplayName(notification.sender);
+        const timeAgo = this.formatTimeAgo(notification.createdAt);
+        const isUnread = !notification.read;
+        
+        // Determine icon based on notification type
+        let icon = 'notifications';
+        switch (notification.type) {
+            case 'like':
+                icon = 'favorite';
+                break;
+            case 'comment':
+                icon = 'comment';
+                break;
+            case 'heart_reaction':
+                icon = 'favorite';
+                break;
+            default:
+                icon = 'notifications';
+        }
+
+        return `
+            <div class="notification-item ${isUnread ? 'unread' : ''}" data-notification-id="${notification.id}">
+                <div class="notification-content">
+                    <div class="notification-icon">
+                        <span class="material-icons">${icon}</span>
+                    </div>
+                    <div class="notification-text">
+                        <p class="notification-message">${notification.message}</p>
+                        <span class="notification-time">${timeAgo}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    getDisplayName(userProfile) {
+        if (!userProfile) return 'Someone';
+        
+        if (userProfile.showRealName && (userProfile.firstName || userProfile.lastName)) {
+            return [userProfile.firstName, userProfile.lastName].filter(Boolean).join(' ');
+        }
+        
+        return userProfile.displayName || 'Anonymous';
+    }
+
+    handleNotificationClick(notification) {
+        // Hide the dropdown
+        this.hideNotificationDropdown();
+        
+        // Navigate based on notification type and data
+        if (notification.data?.postId) {
+            // Navigate to feed and potentially scroll to the post
+            this.switchTab('feed');
+        } else if (notification.data?.messageId) {
+            // Navigate to support groups/chat
+            this.switchTab('support-groups');
+        }
+    }
+
+    // Clean up notification subscription
+    cleanupNotifications() {
+        if (this.notificationUnsubscriber) {
+            this.notificationUnsubscriber();
+            this.notificationUnsubscriber = null;
+        }
     }
 
     // Refresh profile stats in real-time

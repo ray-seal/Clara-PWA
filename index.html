@@ -99,8 +99,9 @@
             <div class="header-content">
                 <h1 id="app-title" class="app-title-clickable">Clara</h1>
                 <div class="header-actions">
-                    <button id="profile-btn" class="icon-btn">
-                        <span class="material-icons">person</span>
+                    <button id="notifications-btn" class="icon-btn notifications-btn">
+                        <span class="material-icons">notifications</span>
+                        <span id="notification-badge" class="notification-badge" style="display: none;">0</span>
                     </button>
                     <button id="logout-btn" class="icon-btn">
                         <span class="material-icons">logout</span>
@@ -108,6 +109,23 @@
                 </div>
             </div>
         </header>
+
+        <!-- Notification Dropdown -->
+        <div id="notification-dropdown" class="notification-dropdown" style="display: none;">
+            <div class="notification-header">
+                <h3>Notifications</h3>
+                <button id="mark-all-read" class="mark-all-read-btn">Mark all read</button>
+            </div>
+            <div id="notifications-list" class="notifications-list">
+                <div class="loading-notifications">
+                    <span class="material-icons spinning">refresh</span>
+                    <p>Loading notifications...</p>
+                </div>
+            </div>
+            <div class="notification-footer">
+                <button id="clear-all-notifications" class="clear-all-btn">Clear all</button>
+            </div>
+        </div>
 
         <!-- Main Content -->
         <main class="main-content">

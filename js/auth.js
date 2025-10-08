@@ -1,5 +1,5 @@
 // Clara PWA - Authentication Manager
-import { auth, db, storage, COLLECTIONS } from './config.js';
+import { auth, db, storage, messaging, COLLECTIONS } from './config.js';
 import { 
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
@@ -24,8 +24,13 @@ import {
     arrayUnion,
     arrayRemove,
     onSnapshot,
-    serverTimestamp
+    serverTimestamp,
+    writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.3.0/firebase-firestore.js';
+import {
+    getToken,
+    onMessage
+} from 'https://www.gstatic.com/firebasejs/10.3.0/firebase-messaging.js';
 import { 
     ref, 
     uploadBytes, 
@@ -559,6 +564,22 @@ class AuthManager {
                 // Award points to post author (if different from liker)
                 if (postAuthorId !== this.currentUser.uid) {
                     await this.awardPointsForReceivingLike(postAuthorId);
+                    
+                    // Create notification for post author
+                    try {
+                        await this.createNotification(
+                            postAuthorId,
+                            'like',
+                            `${this.currentUser.displayName || 'Someone'} liked your post`,
+                            {
+                                postId: postId,
+                                fromUserId: this.currentUser.uid,
+                                fromUserName: this.currentUser.displayName || 'Someone'
+                            }
+                        );
+                    } catch (notifError) {
+                        console.warn('⚠️ Failed to create like notification:', notifError);
+                    }
                 }
                 
                 console.log('👍 Like added');
@@ -639,6 +660,12 @@ class AuthManager {
             console.log(`👤 Current user: ${this.currentUser.uid}`);
             console.log(`📝 Comment content: ${content.trim()}`);
             
+            // Get post to find the author
+            const postRef = doc(db, COLLECTIONS.POSTS, postId);
+            const postDoc = await getDoc(postRef);
+            const postData = postDoc.data();
+            const postAuthorId = postData?.uid;
+            
             const commentData = {
                 postId: postId,
                 uid: this.currentUser.uid,
@@ -650,13 +677,31 @@ class AuthManager {
             await addDoc(collection(db, COLLECTIONS.COMMENTS), commentData);
             
             // Update post comment count
-            const postRef = doc(db, COLLECTIONS.POSTS, postId);
             await updateDoc(postRef, {
                 commentsCount: increment(1)
             });
             
             // Award points for commenting
             await this.awardPoints(this.currentUser.uid, 'comment');
+            
+            // Create notification for post author (if different from commenter)
+            if (postAuthorId && postAuthorId !== this.currentUser.uid) {
+                try {
+                    await this.createNotification(
+                        postAuthorId,
+                        'comment',
+                        `${this.currentUser.displayName || 'Someone'} commented on your post`,
+                        {
+                            postId: postId,
+                            commentContent: content.trim(),
+                            fromUserId: this.currentUser.uid,
+                            fromUserName: this.currentUser.displayName || 'Someone'
+                        }
+                    );
+                } catch (notifError) {
+                    console.warn('⚠️ Failed to create comment notification:', notifError);
+                }
+            }
 
             console.log('✅ Comment added successfully');
         } catch (error) {
@@ -1128,6 +1173,358 @@ class AuthManager {
             console.error('❌ Error fetching meditation history:', error);
             throw error;
         }
+    }
+
+    // =====================================================
+    // NOTIFICATION SYSTEM
+    // =====================================================
+
+    // Create a notification
+    async createNotification(recipientId, type, message, data = {}) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            console.log(`🔔 Creating notification for user ${recipientId}`);
+            
+            const notification = {
+                recipientId: recipientId,
+                senderId: this.currentUser.uid,
+                type: type, // 'like', 'comment', 'heart_reaction', etc.
+                message: message,
+                data: data, // Additional context (postId, messageId, etc.)
+                read: false,
+                createdAt: serverTimestamp()
+            };
+
+            const notificationRef = await addDoc(collection(db, COLLECTIONS.NOTIFICATIONS), notification);
+            console.log('✅ Notification created successfully');
+            return notificationRef.id;
+        } catch (error) {
+            console.error('❌ Error creating notification:', error);
+            throw error;
+        }
+    }
+
+    // Get user's notifications
+    async getNotifications(limit = 20) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            console.log('🔔 Fetching notifications...');
+            
+            const notificationsQuery = query(
+                collection(db, COLLECTIONS.NOTIFICATIONS),
+                where('recipientId', '==', this.currentUser.uid),
+                orderBy('createdAt', 'desc'),
+                limit(limit)
+            );
+
+            const snapshot = await getDocs(notificationsQuery);
+            const notifications = await Promise.all(snapshot.docs.map(async (docSnapshot) => {
+                const data = docSnapshot.data();
+                
+                // Get sender profile for display name and avatar
+                let senderProfile = null;
+                if (data.senderId) {
+                    try {
+                        const senderDoc = await getDoc(doc(db, COLLECTIONS.PROFILES, data.senderId));
+                        if (senderDoc.exists()) {
+                            senderProfile = senderDoc.data();
+                        }
+                    } catch (error) {
+                        console.warn('Could not fetch sender profile:', error);
+                    }
+                }
+
+                return {
+                    id: docSnapshot.id,
+                    ...data,
+                    sender: senderProfile
+                };
+            }));
+
+            console.log(`✅ Found ${notifications.length} notifications`);
+            return notifications;
+        } catch (error) {
+            console.error('❌ Error fetching notifications:', error);
+            throw error;
+        }
+    }
+
+    // Subscribe to real-time notifications
+    subscribeToNotifications(callback) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        console.log('👂 Subscribing to notifications...');
+        
+        const notificationsQuery = query(
+            collection(db, COLLECTIONS.NOTIFICATIONS),
+            where('recipientId', '==', this.currentUser.uid),
+            orderBy('createdAt', 'desc'),
+            limit(50)
+        );
+
+        return onSnapshot(notificationsQuery, async (snapshot) => {
+            console.log(`🔔 Notifications updated: ${snapshot.docs.length} notifications`);
+            
+            const notifications = await Promise.all(snapshot.docs.map(async (docSnapshot) => {
+                const data = docSnapshot.data();
+                
+                // Get sender profile
+                let senderProfile = null;
+                if (data.senderId) {
+                    try {
+                        const senderDoc = await getDoc(doc(db, COLLECTIONS.PROFILES, data.senderId));
+                        if (senderDoc.exists()) {
+                            senderProfile = senderDoc.data();
+                        }
+                    } catch (error) {
+                        console.warn('Could not fetch sender profile:', error);
+                    }
+                }
+
+                return {
+                    id: docSnapshot.id,
+                    ...data,
+                    sender: senderProfile
+                };
+            }));
+            
+            callback(notifications);
+        }, (error) => {
+            console.error('❌ Error in notifications subscription:', error);
+        });
+    }
+
+    // Mark notification as read
+    async markNotificationRead(notificationId) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            const notificationRef = doc(db, COLLECTIONS.NOTIFICATIONS, notificationId);
+            await updateDoc(notificationRef, {
+                read: true,
+                readAt: serverTimestamp()
+            });
+            console.log(`✅ Notification ${notificationId} marked as read`);
+        } catch (error) {
+            console.error('❌ Error marking notification as read:', error);
+            throw error;
+        }
+    }
+
+    // Mark all notifications as read
+    async markAllNotificationsRead() {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            const notificationsQuery = query(
+                collection(db, COLLECTIONS.NOTIFICATIONS),
+                where('recipientId', '==', this.currentUser.uid),
+                where('read', '==', false)
+            );
+
+            const snapshot = await getDocs(notificationsQuery);
+            const batch = writeBatch(db);
+
+            snapshot.docs.forEach((docSnapshot) => {
+                batch.update(docSnapshot.ref, {
+                    read: true,
+                    readAt: serverTimestamp()
+                });
+            });
+
+            await batch.commit();
+            console.log(`✅ Marked ${snapshot.docs.length} notifications as read`);
+        } catch (error) {
+            console.error('❌ Error marking all notifications as read:', error);
+            throw error;
+        }
+    }
+
+    // Delete notification
+    async deleteNotification(notificationId) {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            await deleteDoc(doc(db, COLLECTIONS.NOTIFICATIONS, notificationId));
+            console.log(`✅ Notification ${notificationId} deleted`);
+        } catch (error) {
+            console.error('❌ Error deleting notification:', error);
+            throw error;
+        }
+    }
+
+    // Clear all notifications
+    async clearAllNotifications() {
+        if (!this.currentUser) throw new Error('Not authenticated');
+
+        try {
+            const notificationsQuery = query(
+                collection(db, COLLECTIONS.NOTIFICATIONS),
+                where('recipientId', '==', this.currentUser.uid)
+            );
+
+            const snapshot = await getDocs(notificationsQuery);
+            const batch = writeBatch(db);
+
+            snapshot.docs.forEach((docSnapshot) => {
+                batch.delete(docSnapshot.ref);
+            });
+
+            await batch.commit();
+            console.log(`✅ Cleared ${snapshot.docs.length} notifications`);
+        } catch (error) {
+            console.error('❌ Error clearing all notifications:', error);
+            throw error;
+        }
+    }
+
+    // 🔔 PUSH NOTIFICATIONS (FCM) METHODS
+
+    // Request notification permission and get FCM token
+    async requestNotificationPermission() {
+        try {
+            console.log('🔔 Requesting notification permission...');
+            
+            // Check if notifications are supported
+            if (!('Notification' in window)) {
+                console.warn('⚠️ This browser does not support notifications');
+                return null;
+            }
+
+            // Check current permission status
+            let permission = Notification.permission;
+            console.log('🔔 Current permission status:', permission);
+
+            // Request permission if not already granted
+            if (permission === 'default') {
+                permission = await Notification.requestPermission();
+                console.log('🔔 Permission after request:', permission);
+            }
+
+            if (permission === 'granted') {
+                // Get FCM token
+                const token = await this.getFCMToken();
+                if (token) {
+                    // Save token to user profile
+                    await this.saveFCMToken(token);
+                    console.log('✅ Push notifications enabled');
+                    return token;
+                }
+            } else {
+                console.log('❌ Notification permission denied');
+                return null;
+            }
+        } catch (error) {
+            console.error('❌ Error requesting notification permission:', error);
+            return null;
+        }
+    }
+
+    // Get FCM registration token
+    async getFCMToken() {
+        try {
+            // Register service worker for FCM
+            if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+                console.log('✅ FCM Service Worker registered:', registration);
+            }
+
+            // Get FCM token
+            const token = await getToken(messaging, {
+                vapidKey: 'BGyl4BFV2RaioVpj_Ijhy-WXMMjLsg0rw47Tn9MYCPJzm_-VpXNp-ijlli9171TORSO4cMfbefyZbkj_uuCa5vc'
+            });
+
+            if (token) {
+                console.log('✅ FCM token obtained:', token.substring(0, 20) + '...');
+                return token;
+            } else {
+                console.warn('⚠️ No FCM token available');
+                return null;
+            }
+        } catch (error) {
+            console.error('❌ Error getting FCM token:', error);
+            return null;
+        }
+    }
+
+    // Save FCM token to user profile
+    async saveFCMToken(token) {
+        if (!this.currentUser) return;
+
+        try {
+            const profileRef = doc(db, COLLECTIONS.PROFILES, this.currentUser.uid);
+            await updateDoc(profileRef, {
+                fcmToken: token,
+                fcmTokenUpdatedAt: serverTimestamp(),
+                pushNotificationsEnabled: true
+            });
+            console.log('✅ FCM token saved to profile');
+        } catch (error) {
+            console.error('❌ Error saving FCM token:', error);
+        }
+    }
+
+    // Setup foreground message listener
+    setupForegroundMessageListener() {
+        if (!messaging) return;
+
+        onMessage(messaging, (payload) => {
+            console.log('🔔 Foreground message received:', payload);
+
+            // Show notification if app is in foreground
+            if (Notification.permission === 'granted') {
+                const notification = new Notification(
+                    payload.notification?.title || 'Clara Notification',
+                    {
+                        body: payload.notification?.body || 'You have a new notification',
+                        icon: '/icons/icon-192x192.png',
+                        badge: '/icons/icon-96x96.png',
+                        tag: 'clara-notification',
+                        data: payload.data
+                    }
+                );
+
+                // Handle notification click
+                notification.onclick = () => {
+                    window.focus();
+                    notification.close();
+                    
+                    // Handle specific notification actions if needed
+                    if (payload.data?.url) {
+                        window.location.href = payload.data.url;
+                    }
+                };
+            }
+
+            // Update notification badge in real-time
+            if (window.app && window.app.updateNotificationBadge) {
+                window.app.updateNotificationBadge();
+            }
+        });
+    }
+
+    // Disable push notifications
+    async disablePushNotifications() {
+        if (!this.currentUser) return;
+
+        try {
+            const profileRef = doc(db, COLLECTIONS.PROFILES, this.currentUser.uid);
+            await updateDoc(profileRef, {
+                fcmToken: null,
+                pushNotificationsEnabled: false,
+                fcmTokenUpdatedAt: serverTimestamp()
+            });
+            console.log('✅ Push notifications disabled');
+        } catch (error) {
+            console.error('❌ Error disabling push notifications:', error);
+        }
+    }
+
+    // Check if push notifications are supported and enabled
+    isPushNotificationSupported() {
+        return 'Notification' in window && 'serviceWorker' in navigator && messaging;
     }
 }
 

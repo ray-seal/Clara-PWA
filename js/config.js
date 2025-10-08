@@ -3,6 +3,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.3.0/firebas
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.3.0/firebase-firestore.js';
 import { getAuth } from 'https://www.gstatic.com/firebasejs/10.3.0/firebase-auth.js';
 import { getStorage } from 'https://www.gstatic.com/firebasejs/10.3.0/firebase-storage.js';
+import { getMessaging } from 'https://www.gstatic.com/firebasejs/10.3.0/firebase-messaging.js';
 
 // Firebase configuration with your saved credentials
 const firebaseConfig = {
@@ -21,6 +22,7 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+export const messaging = getMessaging(app);
 
 // Collection names for Clara Mental Health Support
 export const COLLECTIONS = {

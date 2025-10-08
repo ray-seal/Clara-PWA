@@ -2,32 +2,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // User Profiles - Users can read all profiles but only edit their own
+    // User Profiles - Users can read all profiles but only edit their own, except for points/stats
     match /profiles/{userId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+      // Allow updates for profile owner or for points/stats system
+      allow update: if request.auth != null && (
+        request.auth.uid == userId ||
+        isPointsOrStatsUpdate()
+      );
     }
     
-    // Social Posts - Authenticated users can read all, write their own, but can update likes/comments counts
+    // Helper function to check if update is just points/stats
+    function isPointsOrStatsUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'level', 'stats']);
+    }
+    
+    // Social Posts - Allow likes and comments by anyone, full edit by owner only
     match /posts/{postId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
       allow delete: if request.auth != null && request.auth.uid == resource.data.uid;
-      // Allow updates for likes and comments by any authenticated user
+      // Simplified update rule - owner can update everything, others can update likes/comments
       allow update: if request.auth != null && (
-        // Post owner can update everything
         request.auth.uid == resource.data.uid ||
-        // Anyone can update likes and likesCount only
-        (request.resource.data.keys().hasOnly(['likes', 'likesCount']) &&
-         request.resource.data.uid == resource.data.uid &&
-         request.resource.data.content == resource.data.content &&
-         request.resource.data.createdAt == resource.data.createdAt) ||
-        // Anyone can update commentsCount only
-        (request.resource.data.keys().hasOnly(['commentsCount']) &&
-         request.resource.data.uid == resource.data.uid &&
-         request.resource.data.content == resource.data.content &&
-         request.resource.data.createdAt == resource.data.createdAt)
+        isLikeOrCommentUpdate()
       );
+    }
+    
+    // Helper function to check if update is just likes/comments
+    function isLikeOrCommentUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likesCount', 'commentsCount']);
     }
     
     // Comments - Authenticated users can read all, write their own
@@ -55,15 +61,10 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
       allow delete: if request.auth != null && request.auth.uid == resource.data.uid;
-      // Allow updates for heart reactions by any authenticated user
+      // Allow updates for heart reactions
       allow update: if request.auth != null && (
-        // Message owner can update everything
         request.auth.uid == resource.data.uid ||
-        // Anyone can update heartReactions only
-        (request.resource.data.keys().hasOnly(['heartReactions']) &&
-         request.resource.data.uid == resource.data.uid &&
-         request.resource.data.content == resource.data.content &&
-         request.resource.data.createdAt == resource.data.createdAt)
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['heartReactions'])
       );
     }
     

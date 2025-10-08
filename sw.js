@@ -11,6 +11,7 @@ const urlsToCache = [
   '/js/auth.js',
   '/js/config.js',
   '/manifest.json',
+  '/firebase-messaging-sw.js',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
@@ -78,6 +79,56 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(request).then((res) => res || caches.match('/index.html')))
   );
 });
+
+// Background Sync for offline notification storage
+self.addEventListener('sync', (event) => {
+  console.log('🔄 Background sync triggered:', event.tag);
+  
+  if (event.tag === 'offline-notifications') {
+    event.waitUntil(syncOfflineNotifications());
+  }
+});
+
+// Sync offline notifications when connection is restored
+async function syncOfflineNotifications() {
+  try {
+    console.log('📡 Syncing offline notifications...');
+    
+    // Get stored offline notifications from IndexedDB
+    const offlineNotifications = await getOfflineNotifications();
+    
+    if (offlineNotifications.length > 0) {
+      console.log(`📤 Syncing ${offlineNotifications.length} offline notifications`);
+      
+      // Send notifications to Firebase when online
+      for (const notification of offlineNotifications) {
+        try {
+          // You would implement the actual Firebase API call here
+          // This is a placeholder for the sync logic
+          console.log('📨 Syncing notification:', notification);
+          
+          // Remove from offline storage after successful sync
+          await removeOfflineNotification(notification.id);
+        } catch (error) {
+          console.error('❌ Failed to sync notification:', error);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error syncing offline notifications:', error);
+  }
+}
+
+// Placeholder functions for IndexedDB operations
+async function getOfflineNotifications() {
+  // Implement IndexedDB get operations
+  return [];
+}
+
+async function removeOfflineNotification(id) {
+  // Implement IndexedDB remove operations
+  console.log(`🗑️ Removed offline notification: ${id}`);
+}
 
 // Force page reload when new service worker takes control
 self.addEventListener('controllerchange', () => {
