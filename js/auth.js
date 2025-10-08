@@ -1390,7 +1390,9 @@ class AuthManager {
             
             // Also send push notification via Vercel function
             try {
-                await this.sendPushNotification(recipientId, message, type, metadata);
+                console.log('🚀 Sending push notification to FCM server...');
+                const pushResult = await this.sendPushNotification(recipientId, message, type, metadata);
+                console.log('📊 Push notification result:', pushResult);
             } catch (pushError) {
                 console.warn('⚠️ Failed to send push notification:', pushError);
                 // Don't fail the notification creation if push fails
@@ -1407,6 +1409,13 @@ class AuthManager {
     // Send push notification via Vercel function
     async sendPushNotification(recipientId, message, type, metadata) {
         try {
+            console.log('📤 Starting push notification...', {
+                recipientId,
+                message,
+                type,
+                metadata
+            });
+            
             const response = await fetch('https://clara-pwa.vercel.app/api/send-notification-rest', {
                 method: 'POST',
                 headers: {
@@ -1420,15 +1429,21 @@ class AuthManager {
                 }),
             });
 
+            console.log('🌐 FCM Server response status:', response.status);
+            
             if (response.ok) {
                 const result = await response.json();
                 console.log('✅ Push notification sent successfully');
-                console.log('📊 Debug info:', result);
+                console.log('📊 FCM result:', result);
+                return result;
             } else {
-                console.warn('⚠️ Push notification failed:', await response.text());
+                const errorText = await response.text();
+                console.error('❌ Push notification failed:', response.status, errorText);
+                throw new Error(`FCM failed: ${response.status} - ${errorText}`);
             }
         } catch (error) {
-            console.error('❌ Error sending push notification:', error);
+            console.error('💥 Push notification error:', error);
+            throw error;
         }
     }
 

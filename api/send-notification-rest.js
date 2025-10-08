@@ -12,11 +12,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  console.log('🚀 FCM Notification Request:', req.body);
+
   try {
     const { recipientId, message, type, metadata } = req.body;
+    
+    if (!recipientId || !message) {
+      return res.status(400).json({ error: 'Missing recipientId or message' });
+    }
 
     // Check if we have the required environment variables
     if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_PRIVATE_KEY || !process.env.FIREBASE_CLIENT_EMAIL) {
+      console.error('❌ Missing Firebase configuration');
       return res.status(500).json({ 
         error: 'Missing Firebase configuration',
         hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
@@ -24,6 +31,8 @@ export default async function handler(req, res) {
         hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY
       });
     }
+
+    console.log('🔑 Firebase config loaded successfully');
 
     // Step 1: Get OAuth token for Firebase REST API
     const jwt = require('jsonwebtoken');
@@ -39,6 +48,7 @@ export default async function handler(req, res) {
 
     const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
     const token = jwt.sign(payload, privateKey, { algorithm: 'RS256' });
+    console.log('🎫 JWT token created successfully');
 
     // Exchange JWT for access token
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -49,6 +59,7 @@ export default async function handler(req, res) {
 
     if (!tokenResponse.ok) {
       const tokenError = await tokenResponse.text();
+      console.error('❌ OAuth token request failed:', tokenError);
       return res.status(500).json({ 
         error: 'Failed to get OAuth token',
         details: tokenError
@@ -56,23 +67,34 @@ export default async function handler(req, res) {
     }
 
     const { access_token } = await tokenResponse.json();
+    console.log('✅ OAuth access token obtained');
 
     // Step 2: Get user's FCM token from Firestore REST API
     const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/databases/(default)/documents/profiles/${recipientId}`;
+    console.log('📋 Fetching user profile for FCM token...');
     
     const userResponse = await fetch(firestoreUrl, {
       headers: { 'Authorization': `Bearer ${access_token}` }
     });
 
     if (!userResponse.ok) {
+      console.error('❌ User profile not found:', recipientId);
       return res.status(404).json({ error: 'User not found' });
     }
 
     const userData = await userResponse.json();
     const fcmToken = userData.fields?.fcmToken?.stringValue;
     const pushEnabled = userData.fields?.pushNotificationsEnabled?.booleanValue;
+    
+    console.log('👤 User data retrieved:', {
+      recipientId,
+      hasFcmToken: !!fcmToken,
+      fcmTokenLength: fcmToken?.length || 0,
+      pushEnabled
+    });
 
     if (!fcmToken) {
+      console.warn('⚠️ No FCM token found for user');
       return res.status(200).json({ 
         success: false,
         reason: 'no_fcm_token',
@@ -100,6 +122,7 @@ export default async function handler(req, res) {
 
     // Step 3: Send FCM message using REST API
     const fcmUrl = `https://fcm.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/messages:send`;
+    console.log('📤 Preparing FCM message...');
     
     const fcmMessage = {
       message: {
@@ -121,6 +144,7 @@ export default async function handler(req, res) {
       }
     };
 
+    console.log('🚀 Sending FCM message to device...');
     const fcmResponse = await fetch(fcmUrl, {
       method: 'POST',
       headers: {
@@ -130,15 +154,20 @@ export default async function handler(req, res) {
       body: JSON.stringify(fcmMessage)
     });
 
+    console.log('📊 FCM response status:', fcmResponse.status);
+
     if (!fcmResponse.ok) {
       const fcmError = await fcmResponse.text();
+      console.error('❌ FCM send failed:', fcmError);
       return res.status(500).json({ 
         error: 'FCM send failed',
-        details: fcmError
+        details: fcmError,
+        status: fcmResponse.status
       });
     }
 
     const fcmResult = await fcmResponse.json();
+    console.log('✅ FCM message sent successfully:', fcmResult);
 
     res.status(200).json({
       success: true,
@@ -157,10 +186,11 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('REST API push notification error:', error);
+    console.error('💥 REST API push notification error:', error);
     res.status(500).json({
       error: 'Push notification failed',
       message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       timestamp: new Date().toISOString()
     });
   }

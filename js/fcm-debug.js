@@ -44,11 +44,12 @@ export class FCMDebugPanel {
         const status = await this.getFCMStatus();
         
         panel.innerHTML = `
+            panel.innerHTML = `
             <h4 style="margin: 0 0 10px 0; color: #4CAF50;">🔧 FCM Debug Panel</h4>
             <div><strong>Permission:</strong> ${status.permission}</div>
             <div><strong>FCM Available:</strong> ${status.fcmAvailable ? '✅' : '❌'}</div>
             <div><strong>Service Worker:</strong> ${status.serviceWorker ? '✅' : '❌'}</div>
-            <div><strong>AuthManager:</strong> ${window.authManager ? (window.authManager.initialized ? '✅ Ready' : '⏳ Loading') : '❌ Missing'}</div>
+            <div><strong>AuthManager:</strong> ${status.authStatus}</div>
             <div><strong>User ID:</strong> ${status.userId || 'Not logged in'}</div>
             <div><strong>FCM Token:</strong> ${status.fcmToken}</div>
             <div><strong>Push Enabled:</strong> ${status.pushEnabled ? '✅' : '❌'}</div>
@@ -58,14 +59,15 @@ export class FCMDebugPanel {
                 Request Permissions
             </button>
             <button onclick="fcmDebugPanel.refreshPanel()" style="background: #FF9800; color: white; border: none; padding: 5px 10px; border-radius: 4px; margin: 2px;">
-                Refresh Status
+                Refresh
             </button>
             <button onclick="fcmDebugPanel.testNotification()" style="background: #2196F3; color: white; border: none; padding: 5px 10px; border-radius: 4px; margin: 2px;">
-                Test Notification
+                Test FCM
             </button>
             <button onclick="fcmDebugPanel.testDirectNotification()" style="background: #9C27B0; color: white; border: none; padding: 5px 10px; border-radius: 4px; margin: 2px;">
                 Direct Test
             </button>
+        `;
         `;
 
         panel.appendChild(closeBtn);
@@ -78,72 +80,66 @@ export class FCMDebugPanel {
     }
 
     async getFCMStatus() {
-        const status = {
-            permission: Notification.permission,
-            fcmAvailable: !!window.messaging,
-            serviceWorker: 'serviceWorker' in navigator,
-            userId: null,
-            fcmToken: 'Loading...',
-            pushEnabled: false,
-            browser: navigator.userAgent.includes('iPhone') ? 'iPhone Safari' : 
-                    navigator.userAgent.includes('Android') ? 'Android' : 'Desktop'
-        };
-
-        // Wait for auth manager and current user
-        if (window.authManager) {
-            // Wait a bit for auth state to be established
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+            console.log('🔍 Getting FCM status...');
             
-            // Try multiple ways to get the current user
-            let currentUser = window.authManager.currentUser;
-            
-            if (!currentUser && window.authManager.auth) {
-                currentUser = window.authManager.auth.currentUser;
-            }
-            
-            if (!currentUser) {
-                // Wait for auth state change
-                await new Promise((resolve) => {
-                    const unsubscribe = window.authManager.onAuthStateChange((user) => {
-                        currentUser = user;
-                        unsubscribe();
-                        resolve();
-                    });
-                    // Timeout after 3 seconds
-                    setTimeout(() => {
-                        unsubscribe();
-                        resolve();
-                    }, 3000);
-                });
-            }
-            
-            status.userId = currentUser?.uid || 'Auth state not ready';
-
-            // Get FCM token from profile if user is logged in
-            if (currentUser?.uid) {
-                try {
-                    // Import the db directly since authManager doesn't expose it
-                    const { db } = await import('./config.js');
-                    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.3.0/firebase-firestore.js');
-                    
-                    const userDoc = await getDoc(doc(db, 'profiles', currentUser.uid));
-                    if (userDoc.exists()) {
-                        const data = userDoc.data();
-                        status.fcmToken = data?.fcmToken ? `✅ Saved (${data.fcmToken.length} chars)` : '❌ Missing';
-                        status.pushEnabled = data?.pushNotificationsEnabled || false;
-                    } else {
-                        status.fcmToken = '❌ Profile not found';
+            // Wait for AuthManager to be ready
+            let authStatus = 'Missing';
+            if (window.authManager) {
+                if (window.authManager.initialized) {
+                    authStatus = '✅ Ready';
+                } else {
+                    // Wait a bit for initialization
+                    console.log('⏳ Waiting for AuthManager initialization...');
+                    let attempts = 0;
+                    while (!window.authManager.initialized && attempts < 20) {
+                        await new Promise(resolve => setTimeout(resolve, 250));
+                        attempts++;
                     }
-                } catch (error) {
-                    status.fcmToken = '❌ Error loading: ' + error.message;
-                    console.error('FCM token load error:', error);
+                    authStatus = window.authManager.initialized ? '✅ Ready' : '⏳ Still Loading';
                 }
             }
-        } else {
-            status.userId = 'AuthManager not loaded';
+            
+            const permission = ('Notification' in window) ? Notification.permission : 'not-supported';
+            const fcmAvailable = typeof importScripts !== 'undefined' || 'serviceWorker' in navigator;
+            const serviceWorker = 'serviceWorker' in navigator;
+            
+            let token = 'Not available';
+            let pushEnabled = false;
+            
+            if (window.authManager && window.authManager.initialized && window.authManager.currentUser) {
+                try {
+                    const messaging = (await import('./config.js')).messaging;
+                    if (messaging && permission === 'granted') {
+                        const currentToken = await messaging.getToken();
+                        token = currentToken ? `${currentToken.substring(0, 20)}...` : 'No token';
+                        pushEnabled = !!currentToken;
+                    }
+                } catch (error) {
+                    console.warn('Could not get FCM token:', error);
+                    token = 'Error getting token';
+                }
+            }
+            
+            return {
+                permission,
+                fcmAvailable,
+                serviceWorker,
+                authStatus,
+                token,
+                pushEnabled
+            };
+        } catch (error) {
+            console.error('Error getting FCM status:', error);
+            return {
+                permission: 'Error',
+                fcmAvailable: false,
+                serviceWorker: false,
+                authStatus: 'Error',
+                token: 'Error',
+                pushEnabled: false
+            };
         }
-
-        return status;
     }
 
     async requestPermission() {
