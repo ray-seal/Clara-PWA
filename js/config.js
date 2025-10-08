@@ -22,7 +22,21 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
-export const messaging = getMessaging(app);
+
+// Initialize messaging with error handling
+let messaging;
+try {
+  messaging = getMessaging(app);
+  console.log('✅ Firebase Messaging initialized successfully');
+} catch (error) {
+  console.error('❌ Error initializing Firebase Messaging:', error);
+  console.log('This might be due to:');
+  console.log('- Browser not supporting FCM');
+  console.log('- Missing service worker');
+  console.log('- Incorrect Firebase configuration');
+}
+
+export { messaging };
 
 // Collection names for Clara Mental Health Support
 export const COLLECTIONS = {

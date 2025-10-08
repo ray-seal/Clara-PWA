@@ -1754,9 +1754,20 @@ class AuthManager {
 
     // Check if push notifications are supported and enabled
     isPushNotificationSupported() {
-        return 'Notification' in window && 'serviceWorker' in navigator && messaging;
+        const supported = 'Notification' in window && 'serviceWorker' in navigator && messaging;
+        console.log('🔍 Push notification support check:', {
+            hasNotification: 'Notification' in window,
+            hasServiceWorker: 'serviceWorker' in navigator,
+            hasMessaging: !!messaging,
+            overall: supported
+        });
+        return supported;
     }
 }
+
+// Expose messaging for debugging
+window.messaging = messaging;
+console.log('🔧 Messaging object exposed:', !!messaging);
 
 // Create and export auth manager instance
 export const authManager = new AuthManager();
