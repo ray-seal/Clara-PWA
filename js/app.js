@@ -32,6 +32,9 @@ class ClaraApp {
             // Setup event listeners
             this.setupEventListeners();
 
+            // Setup mobile debug button
+            this.setupMobileDebugButton();
+
             this.initialized = true;
             console.log('✅ Clara app initialized successfully');
 
@@ -2840,6 +2843,30 @@ class ClaraApp {
     showError(message) {
         // Simple error display - could be enhanced with a proper toast/modal
         alert(message);
+    }
+    // Setup mobile debug button for FCM debugging
+    setupMobileDebugButton() {
+        const debugBtn = document.getElementById('fcm-debug-btn');
+        if (debugBtn) {
+            // Show debug button on mobile devices
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (isMobile) {
+                debugBtn.style.display = 'block';
+            }
+            
+            // Also show if user triple-taps anywhere on screen
+            let tapCount = 0;
+            document.addEventListener('click', () => {
+                tapCount++;
+                setTimeout(() => tapCount = 0, 1000);
+                if (tapCount >= 3) {
+                    debugBtn.style.display = 'block';
+                    if (window.fcmDebugPanel) {
+                        window.fcmDebugPanel.showPanel();
+                    }
+                }
+            });
+        }
     }
 }
 
