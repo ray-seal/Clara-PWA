@@ -40,10 +40,10 @@ export default async function handler(req, res) {
     const now = Math.floor(Date.now() / 1000);
     const payload = {
       iss: process.env.FIREBASE_CLIENT_EMAIL,
-      scope: 'https://www.googleapis.com/auth/firebase.messaging',
+      scope: 'https://www.googleapis.com/auth/firebase.messaging https://www.googleapis.com/auth/datastore',
       aud: 'https://oauth2.googleapis.com/token',
-      iat: now,
       exp: now + 3600,
+      iat: now
     };
 
     const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
