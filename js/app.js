@@ -1575,15 +1575,11 @@ class ClaraApp {
 
         container.innerHTML = groupsHtml;
 
-        // Add click listeners for join buttons only
+        // Add click listeners for join buttons
         document.querySelectorAll('[data-group-id]').forEach(button => {
             button.addEventListener('click', (e) => {
                 const groupId = e.target.dataset.groupId;
-                if (groupId === 'anxiety-support') {
-                    this.openChatRoom(groupId);
-                } else {
-                    alert('This support group chat is coming soon!');
-                }
+                this.openChatRoom(groupId);
             });
         });
     }
@@ -1944,9 +1940,31 @@ class ClaraApp {
     openChatRoom(groupId) {
         console.log(`💬 Opening chat room for ${groupId}...`);
         
+        // Find the group configuration
+        const group = APP_CONFIG.SUPPORT_GROUPS.find(g => g.id === groupId);
+        if (!group) {
+            console.error(`Group ${groupId} not found in configuration`);
+            return;
+        }
+        
         // Hide groups list and show chat room
         document.getElementById('groups-list-view').style.display = 'none';
-        document.getElementById('anxiety-chat-room').style.display = 'block';
+        document.getElementById('group-chat-room').style.display = 'block';
+        
+        // Populate chat header with group information
+        const titleElement = document.getElementById('group-chat-title');
+        const descriptionElement = document.getElementById('group-chat-description');
+        const headerElement = document.getElementById('group-chat-header');
+        
+        if (titleElement) {
+            titleElement.textContent = `${group.icon} ${group.name}`;
+        }
+        if (descriptionElement) {
+            descriptionElement.textContent = group.description;
+        }
+        if (headerElement) {
+            headerElement.style.borderLeft = `4px solid ${group.color}`;
+        }
         
         // Initialize chat
         this.initializeChatRoom(groupId);
@@ -2021,7 +2039,7 @@ class ClaraApp {
         }
         
         // Show groups list and hide chat room
-        document.getElementById('anxiety-chat-room').style.display = 'none';
+        document.getElementById('group-chat-room').style.display = 'none';
         document.getElementById('groups-list-view').style.display = 'block';
         
         this.currentChatGroup = null;
