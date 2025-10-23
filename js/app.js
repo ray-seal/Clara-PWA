@@ -2,7 +2,7 @@
 import { authManager } from './auth.js';
 import { APP_CONFIG } from './config.js';
 import * as config from './config.js';
-import BodyScanController from './bodyScan.js';
+import BodyScanControllerFactory from './bodyScan.js';
 
 class ClaraApp {
     constructor() {
@@ -2519,6 +2519,7 @@ class ClaraApp {
                 // Initialize and show body scan controller
                 const meditationType = config.APP_CONFIG.MEDITATION.TYPES.find(t => t.id === 'body-scan');
                 if (meditationType && meditationType.steps) {
+                    const BodyScanController = BodyScanControllerFactory();
                     this.bodyScanController = new BodyScanController(meditationType.steps, {
                         onComplete: () => {
                             console.log('🎉 Body scan completed, loading post-assessment...');
@@ -2530,6 +2531,8 @@ class ClaraApp {
                         }
                     });
                     this.bodyScanController.init();
+                    // Start the session with user gesture (init was called by user action)
+                    this.bodyScanController.start();
                 } else {
                     console.error('❌ Body scan configuration not found');
                     this.showError('Body scan configuration error. Please try again.');
