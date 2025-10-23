@@ -2,6 +2,11 @@
 // Handles slide rendering, timer, transitions, and audio/vibration/TTS cues
 
 export default class BodyScanController {
+  // TTS configuration constants
+  static TTS_RATE = 0.9;      // Slightly slower speech for meditation
+  static TTS_PITCH = 1.0;     // Normal pitch
+  static TTS_VOLUME = 0.8;    // Comfortable volume
+  
   constructor(steps, options = {}) {
     this.steps = steps;
     this.currentStepIndex = 0;
@@ -152,7 +157,10 @@ export default class BodyScanController {
       
       // Resume audio context if suspended (browser autoplay policy)
       if (ctx.state === 'suspended') {
-        ctx.resume();
+        ctx.resume().catch(err => {
+          console.warn('⚠️ Could not resume audio context:', err);
+          return;
+        });
       }
       
       // Create oscillator for a pleasant chime sound
@@ -162,8 +170,9 @@ export default class BodyScanController {
       oscillator.connect(gainNode);
       gainNode.connect(ctx.destination);
       
-      // Configure sound (pleasant bell-like tone)
-      oscillator.frequency.value = 528; // 528 Hz (Solfeggio frequency)
+      // Configure sound (528 Hz - "Love frequency" in Solfeggio scale, 
+      // believed to promote healing and relaxation in meditation practices)
+      oscillator.frequency.value = 528;
       oscillator.type = 'sine';
       
       // Envelope for natural sound
@@ -186,9 +195,9 @@ export default class BodyScanController {
       window.speechSynthesis.cancel();
       
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9; // Slightly slower for meditation
-      utterance.pitch = 1.0;
-      utterance.volume = 0.8;
+      utterance.rate = BodyScanController.TTS_RATE;
+      utterance.pitch = BodyScanController.TTS_PITCH;
+      utterance.volume = BodyScanController.TTS_VOLUME;
       
       window.speechSynthesis.speak(utterance);
     } catch (error) {

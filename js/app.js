@@ -2795,10 +2795,14 @@ class ClaraApp {
                 improvements[question] = postMoodData[question] - this.preMoodData[question];
             }
 
+            // Get duration from configuration
+            const meditationType = config.APP_CONFIG.MEDITATION.TYPES.find(t => t.id === this.currentMeditationType);
+            const durationMs = (meditationType?.duration || 120) * 1000; // Convert seconds to milliseconds
+
             // Save complete meditation session
             await authManager.saveMeditationSession({
                 type: this.currentMeditationType,
-                startTime: new Date(Date.now() - (this.currentMeditationType === 'breathing' ? 120000 : 600000)), // Use actual duration
+                startTime: new Date(Date.now() - durationMs),
                 endTime: new Date(),
                 preMoodData: this.preMoodData,
                 postMoodData: postMoodData,
