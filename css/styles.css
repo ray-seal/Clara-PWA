@@ -2850,3 +2850,167 @@ p {
 .admin-delete-comment .material-icons {
     font-size: 14px;
 }
+/* =====================================================
+   BODY SCAN MEDITATION STYLES
+   ===================================================== */
+
+.body-scan-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.body-scan-header {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+    position: relative;
+}
+
+.body-scan-header .back-button {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.body-scan-header h2 {
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--primary-color);
+    font-size: var(--font-size-xxl);
+}
+
+.body-scan-header p {
+    color: var(--text-secondary);
+    font-size: var(--font-size-base);
+    margin: 0;
+}
+
+.body-scan-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+}
+
+.body-scan-slide {
+    background: var(--surface);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.body-scan-slide h3 {
+    color: var(--primary-color);
+    font-size: var(--font-size-xxl);
+    margin: 0 0 var(--spacing-lg) 0;
+}
+
+.body-scan-slide p {
+    color: var(--text-primary);
+    font-size: var(--font-size-lg);
+    line-height: 1.6;
+    margin: 0 0 var(--spacing-xl) 0;
+}
+
+.body-scan-timer {
+    margin-top: auto;
+}
+
+.body-scan-timer .timer-display {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-md);
+    font-variant-numeric: tabular-nums;
+}
+
+.body-scan-timer .progress-bar {
+    height: 8px;
+    background: var(--surface-alt);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.body-scan-timer .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    transition: width 0.3s ease;
+}
+
+.body-scan-controls {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.body-scan-controls .btn {
+    min-width: 80px;
+}
+
+.body-scan-settings {
+    display: flex;
+    gap: var(--spacing-lg);
+    justify-content: center;
+    padding: var(--spacing-md);
+    background: var(--surface-alt);
+    border-radius: var(--border-radius);
+}
+
+.body-scan-settings label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.body-scan-settings input[type="checkbox"] {
+    cursor: pointer;
+}
+
+/* Screen reader only content */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .body-scan-slide h3 {
+        font-size: var(--font-size-xl);
+    }
+    
+    .body-scan-slide p {
+        font-size: var(--font-size-base);
+    }
+    
+    .body-scan-timer .timer-display {
+        font-size: 2rem;
+    }
+    
+    .body-scan-controls {
+        gap: var(--spacing-sm);
+    }
+    
+    .body-scan-controls .btn {
+        min-width: 70px;
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: var(--font-size-sm);
+    }
+}

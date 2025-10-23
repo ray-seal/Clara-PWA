@@ -133,10 +133,25 @@ export const APP_CONFIG = {
       {
         id: 'body-scan',
         name: 'Body Scan',
-        description: 'Progressive relaxation through body awareness',
-        icon: '🧘‍♀️',
+        description: 'Progressive body awareness and relaxation to reduce tension and promote grounding.',
+        icon: '🌱',
         color: '#27AE60',
-        comingSoon: true
+        duration: 600, // 10 minutes
+        comingSoon: false,
+        steps: [
+          { id: 'feet', title: 'Feet', instruction: 'Bring awareness to your feet. Notice sensations without judgment.', seconds: 40 },
+          { id: 'calves', title: 'Calves & Ankles', instruction: 'Move attention to your calves and ankles.', seconds: 40 },
+          { id: 'knees', title: 'Knees', instruction: 'Bring gentle attention to your knees.', seconds: 40 },
+          { id: 'thighs', title: 'Thighs & Hips', instruction: 'Scan your thighs and hips for tension.', seconds: 60 },
+          { id: 'pelvis', title: 'Pelvis & Lower Back', instruction: 'Notice sensations in your pelvis and low back.', seconds: 50 },
+          { id: 'abdomen', title: 'Abdomen', instruction: 'Observe your belly and breath movement.', seconds: 40 },
+          { id: 'chest', title: 'Chest & Upper Back', instruction: 'Shift awareness to your chest and upper back.', seconds: 50 },
+          { id: 'shoulders', title: 'Shoulders', instruction: 'Soften your shoulders and notice how they feel.', seconds: 40 },
+          { id: 'arms', title: 'Arms & Hands', instruction: 'Scan your arms, forearms and hands.', seconds: 40 },
+          { id: 'neck', title: 'Neck', instruction: 'Bring attention to your neck and throat.', seconds: 30 },
+          { id: 'face', title: 'Face & Jaw', instruction: 'Relax the muscles of your face and jaw.', seconds: 40 },
+          { id: 'whole', title: 'Whole Body', instruction: 'Rest attention on the whole body and the breath.', seconds: 65 }
+        ]
       },
       {
         id: 'loving-kindness',
