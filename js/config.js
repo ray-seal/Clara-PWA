@@ -139,18 +139,19 @@ export const APP_CONFIG = {
         duration: 600, // 10 minutes
         comingSoon: false,
         steps: [
-          { id: 'feet', title: 'Feet', instruction: 'Bring awareness to your feet. Notice sensations without judgment.', seconds: 40 },
-          { id: 'calves', title: 'Calves & Ankles', instruction: 'Move attention to your calves and ankles.', seconds: 40 },
-          { id: 'knees', title: 'Knees', instruction: 'Bring gentle attention to your knees.', seconds: 40 },
-          { id: 'thighs', title: 'Thighs & Hips', instruction: 'Scan your thighs and hips for tension.', seconds: 60 },
-          { id: 'pelvis', title: 'Pelvis & Lower Back', instruction: 'Notice sensations in your pelvis and low back.', seconds: 50 },
-          { id: 'abdomen', title: 'Abdomen', instruction: 'Observe your belly and breath movement.', seconds: 40 },
-          { id: 'chest', title: 'Chest & Upper Back', instruction: 'Shift awareness to your chest and upper back.', seconds: 50 },
-          { id: 'shoulders', title: 'Shoulders', instruction: 'Soften your shoulders and notice how they feel.', seconds: 40 },
-          { id: 'arms', title: 'Arms & Hands', instruction: 'Scan your arms, forearms and hands.', seconds: 40 },
-          { id: 'neck', title: 'Neck', instruction: 'Bring attention to your neck and throat.', seconds: 30 },
-          { id: 'face', title: 'Face & Jaw', instruction: 'Relax the muscles of your face and jaw.', seconds: 40 },
-          { id: 'whole', title: 'Whole Body', instruction: 'Rest attention on the whole body and the breath.', seconds: 65 }
+          { id: 'feet', title: 'Feet', instruction: 'Bring attention to your feet. Notice pressure against the floor or surface, temperature (warm/cool), tingling, and any points of contact.', seconds: 40 },
+          { id: 'calves', title: 'Calves &amp; Ankles', instruction: 'Move awareness to your calves and ankles. Notice sensations of tension, ease, pulsing, or the feeling of weight and support.', seconds: 40 },
+          { id: 'knees', title: 'Knees', instruction: 'Gently note sensations around your knees: any stiffness, movement, warmth, or looseness. Breathe into the area and soften if possible.', seconds: 40 },
+          { id: 'thighs', title: 'Thighs &amp; Hips', instruction: 'Scan your thighs and hips. Notice heaviness or lightness, tightness, and how the muscles feel with each breath.', seconds: 60 },
+          { id: 'pelvis', title: 'Pelvis &amp; Lower Back', instruction: 'Bring attention to your pelvis and lower back. Notice support, pressure, any tightness, and how the breath moves through your abdomen.', seconds: 50 },
+          { id: 'abdomen', title: 'Abdomen', instruction: 'Observe your belly and diaphragm. Notice rising/falling with breath, subtle movement, and sensations of expansion or relaxation.', seconds: 40 },
+          { id: 'chest', title: 'Chest &amp; Upper Back', instruction: 'Shift to your chest and upper back. Notice the breath, any tightness behind the sternum, and the motion of the ribs.', seconds: 50 },
+          { id: 'shoulders', title: 'Shoulders', instruction: "Scan the shoulders and notice if they're held up or relaxed. Soften into your exhale and let any holding release gently.", seconds: 40 },
+          { id: 'arms', title: 'Arms &amp; Forearms', instruction: 'Move attention through the arms and forearms. Notice weight, temperature, any tingling or the sense of openness.', seconds: 40 },
+          { id: 'hands', title: 'Hands &amp; Fingers', instruction: 'Bring attention to your hands and fingers. Notice contact, rest, any small movements or tension in the grip.', seconds: 30 },
+          { id: 'neck', title: 'Neck &amp; Throat', instruction: 'Notice neck and throat areas: tension, ease, swallowing sensations, and how the neck supports the head.', seconds: 30 },
+          { id: 'face', title: 'Face &amp; Jaw', instruction: 'Softly scan your face—jaw, mouth, eyes, forehead. Notice tiny muscles, any clenching, and let them soften with each exhale.', seconds: 40 },
+          { id: 'whole', title: 'Whole Body', instruction: 'Rest your attention on the whole body. Notice how the parts you scanned connect; feel the breath and a sense of calm integration.', seconds: 65 }
         ]
       },
       {
