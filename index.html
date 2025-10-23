@@ -303,6 +303,43 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Body Scan View -->
+                    <div id="body-scan-view" class="meditation-view" style="display: none;">
+                      <div class="body-scan-container">
+                        <div class="body-scan-header">
+                          <button id="exit-body-scan" class="back-button"><span class="material-icons">close</span></button>
+                          <h2 id="body-scan-title">🌱 Body Scan</h2>
+                          <p id="body-scan-subtitle">Move your awareness slowly through the body, noticing sensations without judgment.</p>
+                        </div>
+
+                        <div class="body-scan-main">
+                          <div id="body-scan-slide" class="body-scan-slide">
+                            <h3 id="body-scan-step-title">Feet</h3>
+                            <p id="body-scan-step-instruction">Bring awareness to your feet. Notice any sensations...</p>
+                            <div class="body-scan-timer">
+                              <div id="body-scan-timer-display" class="timer-display">0:40</div>
+                              <div id="body-scan-progress" class="progress-bar"><div id="body-scan-progress-fill" class="progress-fill"></div></div>
+                            </div>
+                          </div>
+
+                          <div class="body-scan-controls">
+                            <button id="body-scan-prev" class="btn btn-outline">Prev</button>
+                            <button id="body-scan-pause" class="btn btn-secondary">Pause</button>
+                            <button id="body-scan-next" class="btn btn-primary">Next</button>
+                            <button id="body-scan-stop" class="btn btn-outline">Stop</button>
+                          </div>
+
+                          <div class="body-scan-settings">
+                            <label><input type="checkbox" id="body-scan-sound" checked> Sound</label>
+                            <label><input type="checkbox" id="body-scan-vibrate" checked> Vibrate</label>
+                            <label><input type="checkbox" id="body-scan-tts" checked> Voice guidance</label>
+                          </div>
+
+                          <div id="body-scan-live" class="sr-only" aria-live="polite"></div>
+                        </div>
+                      </div>
+                    </div>
                 </div>
             </div>
 

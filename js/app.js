@@ -2,11 +2,13 @@
 import { authManager } from './auth.js';
 import { APP_CONFIG } from './config.js';
 import * as config from './config.js';
+import BodyScanController from './bodyScan.js';
 
 class ClaraApp {
     constructor() {
         this.currentTab = 'feed';
         this.initialized = false;
+        this.bodyScanController = null;
     }
 
     async initialize() {
@@ -2509,12 +2511,34 @@ class ClaraApp {
             // Store for later comparison
             this.preMoodData = moodData;
 
-            // Hide pre-assessment and show breathing exercise
+            // Hide pre-assessment
             document.getElementById('mood-assessment-view').style.display = 'none';
-            document.getElementById('breathing-exercise-view').style.display = 'flex';
 
-            // Setup breathing exercise UI but don't auto-start
-            this.setupBreathingExercise();
+            // Show the appropriate exercise view based on meditation type
+            if (this.currentMeditationType === 'body-scan') {
+                // Initialize and show body scan controller
+                const meditationType = config.APP_CONFIG.MEDITATION.TYPES.find(t => t.id === 'body-scan');
+                if (meditationType && meditationType.steps) {
+                    this.bodyScanController = new BodyScanController(meditationType.steps, {
+                        onComplete: () => {
+                            console.log('🎉 Body scan completed, loading post-assessment...');
+                            this.loadMoodAssessment('post');
+                        },
+                        onStop: () => {
+                            console.log('⏹️ Body scan stopped, returning to main content...');
+                            this.returnToMainContent();
+                        }
+                    });
+                    this.bodyScanController.init();
+                } else {
+                    console.error('❌ Body scan configuration not found');
+                    this.showError('Body scan configuration error. Please try again.');
+                }
+            } else {
+                // Default to breathing exercise
+                document.getElementById('breathing-exercise-view').style.display = 'flex';
+                this.setupBreathingExercise();
+            }
 
         } catch (error) {
             console.error('❌ Error submitting pre-mood assessment:', error);
@@ -2909,7 +2933,8 @@ class ClaraApp {
         const meditationViews = [
             'meditation-selection-view',
             'mood-assessment-view', 
-            'breathing-exercise-view'
+            'breathing-exercise-view',
+            'body-scan-view'
         ];
 
         meditationViews.forEach(viewId => {
@@ -2936,6 +2961,12 @@ class ClaraApp {
         if (this.breathingInterval) {
             clearInterval(this.breathingInterval);
             this.breathingInterval = null;
+        }
+        
+        // Clean up body scan controller
+        if (this.bodyScanController) {
+            this.bodyScanController.cleanup();
+            this.bodyScanController = null;
         }
     }
 
